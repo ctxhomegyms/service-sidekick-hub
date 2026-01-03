@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, GripVertical, Edit2, Check, X } from 'lucide-react';
+import { Plus, Trash2, Edit2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,19 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { 
+  ChecklistItemEditor, 
+  AddItemButton,
+  type ChecklistItemData,
+  type ChecklistItemType 
+} from '@/components/checklists/ChecklistItemEditor';
 
 interface TemplateItem {
   id: string;
   item_text: string;
+  item_type: ChecklistItemType;
+  options: string[] | null;
+  is_required: boolean;
   sort_order: number;
 }
 
@@ -41,6 +50,23 @@ interface Template {
   created_at: string;
   items: TemplateItem[];
 }
+
+const ITEM_TYPE_ICONS: Record<ChecklistItemType, string> = {
+  checkbox: '☑',
+  single_line: 'Aa',
+  multi_line: '¶',
+  dropdown: '▼',
+  signature: '✍',
+  image: '📷',
+};
+
+const createEmptyItem = (type: ChecklistItemType, sortOrder: number): ChecklistItemData => ({
+  item_text: '',
+  item_type: type,
+  options: type === 'dropdown' ? ['Option 1', 'Option 2'] : undefined,
+  is_required: false,
+  sort_order: sortOrder,
+});
 
 export default function ChecklistTemplates() {
   const { user } = useAuth();
@@ -53,7 +79,7 @@ export default function ChecklistTemplates() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    items: [''] as string[],
+    items: [createEmptyItem('checkbox', 0)] as ChecklistItemData[],
   });
 
   useEffect(() => {
@@ -69,7 +95,6 @@ export default function ChecklistTemplates() {
 
       if (templatesError) throw templatesError;
 
-      // Fetch items for each template
       const templatesWithItems = await Promise.all(
         (templatesData || []).map(async (template) => {
           const { data: itemsData } = await supabase
@@ -80,7 +105,11 @@ export default function ChecklistTemplates() {
 
           return {
             ...template,
-            items: itemsData || [],
+            items: (itemsData || []).map(item => ({
+              ...item,
+              item_type: (item.item_type || 'checkbox') as ChecklistItemType,
+              options: item.options as string[] | null,
+            })),
           };
         })
       );
@@ -101,12 +130,23 @@ export default function ChecklistTemplates() {
         name: template.name,
         description: template.description || '',
         items: template.items.length > 0 
-          ? template.items.map(i => i.item_text)
-          : [''],
+          ? template.items.map(i => ({
+              id: i.id,
+              item_text: i.item_text,
+              item_type: i.item_type,
+              options: i.options || undefined,
+              is_required: i.is_required,
+              sort_order: i.sort_order,
+            }))
+          : [createEmptyItem('checkbox', 0)],
       });
     } else {
       setEditingTemplate(null);
-      setFormData({ name: '', description: '', items: [''] });
+      setFormData({ 
+        name: '', 
+        description: '', 
+        items: [createEmptyItem('checkbox', 0)] 
+      });
     }
     setIsDialogOpen(true);
   };
@@ -114,25 +154,35 @@ export default function ChecklistTemplates() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingTemplate(null);
-    setFormData({ name: '', description: '', items: [''] });
+    setFormData({ 
+      name: '', 
+      description: '', 
+      items: [createEmptyItem('checkbox', 0)] 
+    });
   };
 
-  const handleAddItem = () => {
-    setFormData(f => ({ ...f, items: [...f.items, ''] }));
+  const handleAddItem = (type: ChecklistItemType) => {
+    setFormData(f => ({
+      ...f,
+      items: [...f.items, createEmptyItem(type, f.items.length)],
+    }));
   };
 
   const handleRemoveItem = (index: number) => {
     if (formData.items.length === 1) return;
     setFormData(f => ({
       ...f,
-      items: f.items.filter((_, i) => i !== index),
+      items: f.items.filter((_, i) => i !== index).map((item, i) => ({
+        ...item,
+        sort_order: i,
+      })),
     }));
   };
 
-  const handleItemChange = (index: number, value: string) => {
+  const handleItemChange = (index: number, item: ChecklistItemData) => {
     setFormData(f => ({
       ...f,
-      items: f.items.map((item, i) => (i === index ? value : item)),
+      items: f.items.map((existing, i) => (i === index ? item : existing)),
     }));
   };
 
@@ -142,15 +192,14 @@ export default function ChecklistTemplates() {
       return;
     }
 
-    const validItems = formData.items.filter(item => item.trim());
+    const validItems = formData.items.filter(item => item.item_text.trim());
     if (validItems.length === 0) {
-      toast.error('Please add at least one checklist item');
+      toast.error('Please add at least one checklist item with a label');
       return;
     }
 
     try {
       if (editingTemplate) {
-        // Update existing template
         const { error: updateError } = await supabase
           .from('checklist_templates')
           .update({
@@ -161,7 +210,6 @@ export default function ChecklistTemplates() {
 
         if (updateError) throw updateError;
 
-        // Delete old items and insert new ones
         await supabase
           .from('checklist_template_items')
           .delete()
@@ -169,7 +217,10 @@ export default function ChecklistTemplates() {
 
         const itemsToInsert = validItems.map((item, index) => ({
           template_id: editingTemplate.id,
-          item_text: item,
+          item_text: item.item_text,
+          item_type: item.item_type,
+          options: item.options || null,
+          is_required: item.is_required,
           sort_order: index,
         }));
 
@@ -181,7 +232,6 @@ export default function ChecklistTemplates() {
 
         toast.success('Template updated successfully');
       } else {
-        // Create new template
         const { data: templateData, error: templateError } = await supabase
           .from('checklist_templates')
           .insert({
@@ -196,7 +246,10 @@ export default function ChecklistTemplates() {
 
         const itemsToInsert = validItems.map((item, index) => ({
           template_id: templateData.id,
-          item_text: item,
+          item_text: item.item_text,
+          item_type: item.item_type,
+          options: item.options || null,
+          is_required: item.is_required,
           sort_order: index,
         }));
 
@@ -299,18 +352,23 @@ export default function ChecklistTemplates() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-muted-foreground mb-2">
-                    {template.items.length} item{template.items.length !== 1 ? 's' : ''}
+                    {template.items.length} field{template.items.length !== 1 ? 's' : ''}
                   </div>
                   <ul className="space-y-1">
-                    {template.items.slice(0, 4).map((item, idx) => (
+                    {template.items.slice(0, 4).map((item) => (
                       <li key={item.id} className="flex items-center gap-2 text-sm">
-                        <div className="w-4 h-4 rounded border border-muted-foreground/30 flex-shrink-0" />
+                        <span className="w-5 text-center text-muted-foreground">
+                          {ITEM_TYPE_ICONS[item.item_type]}
+                        </span>
                         <span className="truncate">{item.item_text}</span>
+                        {item.is_required && (
+                          <span className="text-destructive text-xs">*</span>
+                        )}
                       </li>
                     ))}
                     {template.items.length > 4 && (
-                      <li className="text-sm text-muted-foreground">
-                        +{template.items.length - 4} more items
+                      <li className="text-sm text-muted-foreground pl-7">
+                        +{template.items.length - 4} more fields
                       </li>
                     )}
                   </ul>
@@ -335,13 +393,13 @@ export default function ChecklistTemplates() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingTemplate ? 'Edit Template' : 'Create Checklist Template'}
             </DialogTitle>
             <DialogDescription>
-              Define the checklist items that will be added to jobs
+              Define the fields that will be added to job checklists
             </DialogDescription>
           </DialogHeader>
 
@@ -352,7 +410,7 @@ export default function ChecklistTemplates() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData(f => ({ ...f, name: e.target.value }))}
-                placeholder="e.g., HVAC Maintenance Checklist"
+                placeholder="e.g., Delivery Completion Checklist"
               />
             </div>
 
@@ -368,39 +426,20 @@ export default function ChecklistTemplates() {
             </div>
 
             <div className="space-y-2">
-              <Label>Checklist Items *</Label>
+              <Label>Checklist Fields *</Label>
               <div className="space-y-2">
                 {formData.items.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <Input
-                      value={item}
-                      onChange={(e) => handleItemChange(index, e.target.value)}
-                      placeholder={`Item ${index + 1}`}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 flex-shrink-0"
-                      onClick={() => handleRemoveItem(index)}
-                      disabled={formData.items.length === 1}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <ChecklistItemEditor
+                    key={index}
+                    item={item}
+                    index={index}
+                    onChange={handleItemChange}
+                    onRemove={handleRemoveItem}
+                    canRemove={formData.items.length > 1}
+                  />
                 ))}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddItem}
-                className="gap-1 mt-2"
-              >
-                <Plus className="h-3 w-3" />
-                Add Item
-              </Button>
+              <AddItemButton onAdd={handleAddItem} />
             </div>
           </div>
 
