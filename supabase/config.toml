@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.send-notification]
 verify_jwt = true
+
+[functions.geocode-address]
+verify_jwt = true
+
+[functions.calculate-route]
+verify_jwt = true

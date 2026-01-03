@@ -14,6 +14,73 @@ export type Database = {
   }
   public: {
     Tables: {
+      checklist_template_items: {
+        Row: {
+          created_at: string
+          id: string
+          item_text: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_text: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_text?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -259,6 +326,8 @@ export type Database = {
           description: string | null
           estimated_duration_minutes: number | null
           id: string
+          latitude: number | null
+          longitude: number | null
           priority: Database["public"]["Enums"]["job_priority"]
           scheduled_date: string | null
           scheduled_time: string | null
@@ -280,6 +349,8 @@ export type Database = {
           description?: string | null
           estimated_duration_minutes?: number | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           priority?: Database["public"]["Enums"]["job_priority"]
           scheduled_date?: string | null
           scheduled_time?: string | null
@@ -301,6 +372,8 @@ export type Database = {
           description?: string | null
           estimated_duration_minutes?: number | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           priority?: Database["public"]["Enums"]["job_priority"]
           scheduled_date?: string | null
           scheduled_time?: string | null

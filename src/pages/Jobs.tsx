@@ -51,11 +51,18 @@ interface Technician {
   full_name: string | null;
 }
 
+interface ChecklistTemplate {
+  id: string;
+  name: string;
+  items: { item_text: string; sort_order: number }[];
+}
+
 export default function Jobs() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -73,6 +80,7 @@ export default function Jobs() {
     city: string;
     state: string;
     zip_code: string;
+    template_id: string;
   }>({
     title: '',
     description: '',
@@ -85,6 +93,7 @@ export default function Jobs() {
     city: '',
     state: '',
     zip_code: '',
+    template_id: '',
   });
 
   useEffect(() => {
@@ -93,7 +102,7 @@ export default function Jobs() {
 
   const fetchData = async () => {
     try {
-      const [jobsRes, customersRes, techniciansRes] = await Promise.all([
+      const [jobsRes, customersRes, techniciansRes, templatesRes] = await Promise.all([
         supabase
           .from('jobs')
           .select(`
@@ -114,12 +123,28 @@ export default function Jobs() {
         supabase
           .from('profiles')
           .select('id, full_name')
-          .in('id', (await supabase.from('user_roles').select('user_id').eq('role', 'technician')).data?.map(r => r.user_id) || [])
+          .in('id', (await supabase.from('user_roles').select('user_id').eq('role', 'technician')).data?.map(r => r.user_id) || []),
+        supabase.from('checklist_templates').select('id, name').order('name'),
       ]);
 
       if (jobsRes.data) setJobs(jobsRes.data as unknown as Job[]);
       if (customersRes.data) setCustomers(customersRes.data);
       if (techniciansRes.data) setTechnicians(techniciansRes.data);
+      
+      // Fetch template items for each template
+      if (templatesRes.data) {
+        const templatesWithItems = await Promise.all(
+          templatesRes.data.map(async (t) => {
+            const { data: itemsData } = await supabase
+              .from('checklist_template_items')
+              .select('item_text, sort_order')
+              .eq('template_id', t.id)
+              .order('sort_order');
+            return { ...t, items: itemsData || [] };
+          })
+        );
+        setTemplates(templatesWithItems);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -136,6 +161,25 @@ export default function Jobs() {
     }
 
     try {
+      // Geocode address if provided
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+      
+      if (newJob.address) {
+        const { data: geoData } = await supabase.functions.invoke('geocode-address', {
+          body: { 
+            address: newJob.address, 
+            city: newJob.city, 
+            state: newJob.state, 
+            zip_code: newJob.zip_code 
+          }
+        });
+        if (geoData?.latitude && geoData?.longitude) {
+          latitude = geoData.latitude;
+          longitude = geoData.longitude;
+        }
+      }
+
       const isScheduled = !!newJob.scheduled_date;
       const { data, error } = await supabase.from('jobs').insert({
         title: newJob.title,
@@ -149,11 +193,27 @@ export default function Jobs() {
         city: newJob.city || null,
         state: newJob.state || null,
         zip_code: newJob.zip_code || null,
+        latitude,
+        longitude,
         created_by: user?.id,
         status: isScheduled ? 'scheduled' : 'pending',
       }).select('id').single();
 
       if (error) throw error;
+
+      // Add checklist items from template if selected
+      if (newJob.template_id && data) {
+        const selectedTemplate = templates.find(t => t.id === newJob.template_id);
+        if (selectedTemplate && selectedTemplate.items.length > 0) {
+          const checklistItems = selectedTemplate.items.map((item, index) => ({
+            job_id: data.id,
+            item_text: item.item_text,
+            sort_order: item.sort_order,
+          }));
+          
+          await supabase.from('job_checklist_items').insert(checklistItems);
+        }
+      }
 
       // Send notification if job is scheduled with a customer
       if (isScheduled && newJob.customer_id && data) {
@@ -174,6 +234,7 @@ export default function Jobs() {
         city: '',
         state: '',
         zip_code: '',
+        template_id: '',
       });
       fetchData();
     } catch (error: any) {
@@ -315,6 +376,27 @@ export default function Jobs() {
                       />
                     </div>
                   </div>
+
+                  {templates.length > 0 && (
+                    <div className="space-y-2">
+                      <Label htmlFor="template">Checklist Template</Label>
+                      <Select
+                        value={newJob.template_id}
+                        onValueChange={(value) => setNewJob(j => ({ ...j, template_id: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a checklist template (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {templates.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name} ({t.items.length} items)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="address">Address</Label>
