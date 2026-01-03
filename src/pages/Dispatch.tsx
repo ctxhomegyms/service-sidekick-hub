@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
 import { SkillFilter } from '@/components/dispatch/SkillFilter';
+import { notifyJobScheduled } from '@/lib/notifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -162,6 +163,10 @@ export default function Dispatch() {
           .eq('id', draggableId);
 
         if (error) throw error;
+        
+        // Send notification to customer
+        notifyJobScheduled(draggableId);
+        
         toast.success('Job scheduled');
         fetchData();
       } catch (error: any) {
