@@ -255,6 +255,41 @@ export type Database = {
         }
         Relationships: []
       }
+      technician_locations: {
+        Row: {
+          id: string
+          is_on_shift: boolean
+          latitude: number
+          longitude: number
+          technician_id: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          is_on_shift?: boolean
+          latitude: number
+          longitude: number
+          technician_id: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          is_on_shift?: boolean
+          latitude?: number
+          longitude?: number
+          technician_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technician_locations_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technician_skills: {
         Row: {
           created_at: string
