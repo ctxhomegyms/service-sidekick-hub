@@ -18,21 +18,30 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_required: boolean
           item_text: string
+          item_type: string
+          options: Json | null
           sort_order: number
           template_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_required?: boolean
           item_text: string
+          item_type?: string
+          options?: Json | null
           sort_order?: number
           template_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_required?: boolean
           item_text?: string
+          item_type?: string
+          options?: Json | null
           sort_order?: number
           template_id?: string
         }
@@ -129,9 +138,16 @@ export type Database = {
           completed_by: string | null
           created_at: string
           id: string
+          image_url: string | null
           is_completed: boolean
+          is_required: boolean
           item_text: string
+          item_type: string
           job_id: string
+          options: Json | null
+          response_text: string | null
+          response_value: Json | null
+          signature_url: string | null
           sort_order: number
         }
         Insert: {
@@ -139,9 +155,16 @@ export type Database = {
           completed_by?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
           is_completed?: boolean
+          is_required?: boolean
           item_text: string
+          item_type?: string
           job_id: string
+          options?: Json | null
+          response_text?: string | null
+          response_value?: Json | null
+          signature_url?: string | null
           sort_order?: number
         }
         Update: {
@@ -149,9 +172,16 @@ export type Database = {
           completed_by?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
           is_completed?: boolean
+          is_required?: boolean
           item_text?: string
+          item_type?: string
           job_id?: string
+          options?: Json | null
+          response_text?: string | null
+          response_value?: Json | null
+          signature_url?: string | null
           sort_order?: number
         }
         Relationships: [
