@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/accordion';
 import { useCustomerHistory } from '@/hooks/useCustomerHistory';
 import { StatusBadge } from '@/components/StatusBadge';
+import { NotificationPreferences } from '@/components/customers/NotificationPreferences';
 import type { Database } from '@/integrations/supabase/types';
 
 type JobStatus = Database['public']['Enums']['job_status'];
@@ -194,6 +195,9 @@ export default function CustomerDetail() {
             </Card>
           </div>
         </div>
+
+        {/* Notification Preferences */}
+        <NotificationPreferences customerId={customer.id} />
 
         {/* Job History */}
         <div>

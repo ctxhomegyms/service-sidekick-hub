@@ -17,6 +17,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { PhotoUpload, PhotoGallery } from '@/components/jobs/PhotoUpload';
 import { SignaturePad, SignatureDisplay } from '@/components/jobs/SignaturePad';
 import { JobNotes } from '@/components/jobs/JobNotes';
+import { notifyTechnicianEnRoute, notifyJobCompleted } from '@/lib/notifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -168,6 +169,10 @@ export default function MyJobs() {
 
       if (error) throw error;
       toast.success('Status updated to En Route');
+      
+      // Send notification to customer
+      notifyTechnicianEnRoute(jobId);
+      
       fetchMyJobs();
       if (selectedJob?.id === jobId) {
         setSelectedJob(prev => prev ? { ...prev, status: 'en_route' } : null);
@@ -211,6 +216,10 @@ export default function MyJobs() {
 
       if (error) throw error;
       toast.success('Job completed!');
+      
+      // Send completion notification to customer
+      notifyJobCompleted(jobId);
+      
       fetchMyJobs();
       setSelectedJob(null);
     } catch (error: any) {

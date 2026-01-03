@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { notifyJobScheduled } from '@/lib/notifications';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -135,7 +136,8 @@ export default function Jobs() {
     }
 
     try {
-      const { error } = await supabase.from('jobs').insert({
+      const isScheduled = !!newJob.scheduled_date;
+      const { data, error } = await supabase.from('jobs').insert({
         title: newJob.title,
         description: newJob.description || null,
         customer_id: newJob.customer_id || null,
@@ -148,10 +150,15 @@ export default function Jobs() {
         state: newJob.state || null,
         zip_code: newJob.zip_code || null,
         created_by: user?.id,
-        status: newJob.scheduled_date ? 'scheduled' : 'pending',
-      });
+        status: isScheduled ? 'scheduled' : 'pending',
+      }).select('id').single();
 
       if (error) throw error;
+
+      // Send notification if job is scheduled with a customer
+      if (isScheduled && newJob.customer_id && data) {
+        notifyJobScheduled(data.id);
+      }
 
       toast.success('Job created successfully');
       setIsDialogOpen(false);

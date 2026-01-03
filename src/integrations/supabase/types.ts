@@ -320,6 +320,107 @@ export type Database = {
           },
         ]
       }
+      notification_log: {
+        Row: {
+          channel: string
+          created_at: string
+          customer_id: string
+          error_message: string | null
+          id: string
+          job_id: string
+          notification_type: string
+          recipient: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          customer_id: string
+          error_message?: string | null
+          id?: string
+          job_id: string
+          notification_type: string
+          recipient: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          customer_id?: string
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          notification_type?: string
+          recipient?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_log_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          customer_id: string
+          email_job_completed: boolean
+          email_job_scheduled: boolean
+          email_technician_en_route: boolean
+          id: string
+          sms_job_completed: boolean
+          sms_job_scheduled: boolean
+          sms_technician_en_route: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          email_job_completed?: boolean
+          email_job_scheduled?: boolean
+          email_technician_en_route?: boolean
+          id?: string
+          sms_job_completed?: boolean
+          sms_job_scheduled?: boolean
+          sms_technician_en_route?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          email_job_completed?: boolean
+          email_job_scheduled?: boolean
+          email_technician_en_route?: boolean
+          id?: string
+          sms_job_completed?: boolean
+          sms_job_scheduled?: boolean
+          sms_technician_en_route?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
