@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Jobs from "./pages/Jobs";
 import Dispatch from "./pages/Dispatch";
 import Customers from "./pages/Customers";
+import CustomerDetail from "./pages/CustomerDetail";
 import Technicians from "./pages/Technicians";
 import Schedule from "./pages/Schedule";
 import MyJobs from "./pages/MyJobs";
@@ -46,6 +47,7 @@ function AppRoutes() {
       <Route path="/dispatch" element={<ProtectedRoute><Dispatch /></ProtectedRoute>} />
       <Route path="/map" element={<ProtectedRoute><Map /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+      <Route path="/customers/:customerId" element={<ProtectedRoute><CustomerDetail /></ProtectedRoute>} />
       <Route path="/technicians" element={<ProtectedRoute><Technicians /></ProtectedRoute>} />
       <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
       <Route path="/my-jobs" element={<ProtectedRoute><MyJobs /></ProtectedRoute>} />
