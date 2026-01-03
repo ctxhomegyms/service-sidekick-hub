@@ -97,6 +97,90 @@ export type Database = {
           },
         ]
       }
+      job_notes: {
+        Row: {
+          author_id: string
+          created_at: string
+          id: string
+          job_id: string
+          note_text: string
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          id?: string
+          job_id: string
+          note_text: string
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+          note_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_notes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_notes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          id: string
+          job_id: string
+          photo_type: string
+          photo_url: string
+          uploaded_by: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          job_id: string
+          photo_type: string
+          photo_url: string
+          uploaded_by: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string
+          photo_type?: string
+          photo_url?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_photos_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_photos_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_required_skills: {
         Row: {
           created_at: string
@@ -126,6 +210,38 @@ export type Database = {
             columns: ["skill_id"]
             isOneToOne: false
             referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_signatures: {
+        Row: {
+          id: string
+          job_id: string
+          signature_url: string
+          signed_at: string
+          signer_name: string
+        }
+        Insert: {
+          id?: string
+          job_id: string
+          signature_url: string
+          signed_at?: string
+          signer_name: string
+        }
+        Update: {
+          id?: string
+          job_id?: string
+          signature_url?: string
+          signed_at?: string
+          signer_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_signatures_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
