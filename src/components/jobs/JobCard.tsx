@@ -10,7 +10,7 @@ interface JobCardProps {
     id: string;
     title: string;
     description?: string | null;
-    status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+    status: 'pending' | 'scheduled' | 'en_route' | 'in_progress' | 'completed' | 'cancelled';
     priority: 'low' | 'medium' | 'high' | 'urgent';
     scheduled_date?: string | null;
     scheduled_time?: string | null;

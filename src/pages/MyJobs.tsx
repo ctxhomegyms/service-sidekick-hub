@@ -16,7 +16,7 @@ interface Job {
   id: string;
   title: string;
   description: string | null;
-  status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'scheduled' | 'en_route' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   scheduled_date: string | null;
   scheduled_time: string | null;
@@ -87,6 +87,24 @@ export default function MyJobs() {
     await fetchChecklist(job.id);
   };
 
+  const handleEnRoute = async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ status: 'en_route' })
+        .eq('id', jobId);
+
+      if (error) throw error;
+      toast.success('Status updated to En Route');
+      fetchMyJobs();
+      if (selectedJob?.id === jobId) {
+        setSelectedJob(prev => prev ? { ...prev, status: 'en_route' } : null);
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   const handleStartJob = async (jobId: string) => {
     try {
       const { error } = await supabase
@@ -141,7 +159,7 @@ export default function MyJobs() {
     }
   };
 
-  const activeJobs = jobs.filter(j => ['scheduled', 'in_progress'].includes(j.status));
+  const activeJobs = jobs.filter(j => ['scheduled', 'en_route', 'in_progress'].includes(j.status));
   const completedJobs = jobs.filter(j => j.status === 'completed');
   const pendingJobs = jobs.filter(j => j.status === 'pending');
 
@@ -300,6 +318,16 @@ export default function MyJobs() {
                   {selectedJob.status !== 'completed' && (
                     <div className="flex gap-3 pt-4 border-t">
                       {selectedJob.status === 'scheduled' && (
+                        <Button 
+                          className="flex-1 gap-2"
+                          variant="secondary"
+                          onClick={() => handleEnRoute(selectedJob.id)}
+                        >
+                          <MapPin className="w-4 h-4" />
+                          En Route
+                        </Button>
+                      )}
+                      {selectedJob.status === 'en_route' && (
                         <Button 
                           className="flex-1 gap-2"
                           onClick={() => handleStartJob(selectedJob.id)}

@@ -30,7 +30,7 @@ interface Job {
   id: string;
   title: string;
   description: string | null;
-  status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'scheduled' | 'en_route' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   scheduled_date: string | null;
   scheduled_time: string | null;
@@ -378,6 +378,7 @@ export default function Jobs() {
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="scheduled">Scheduled</SelectItem>
+              <SelectItem value="en_route">En Route</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
