@@ -1,0 +1,251 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Wrench, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+import { z } from 'zod';
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+const signupSchema = loginSchema.extend({
+  fullName: z.string().min(2, 'Name must be at least 2 characters'),
+});
+
+export default function Auth() {
+  const navigate = useNavigate();
+  const { user, signIn, signUp, isLoading: authLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [signupData, setSignupData] = useState({ email: '', password: '', fullName: '' });
+
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate('/dashboard');
+    }
+  }, [user, authLoading, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const result = loginSchema.safeParse(loginData);
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await signIn(loginData.email, loginData.password);
+    setIsLoading(false);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Welcome back!');
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const result = signupSchema.safeParse(signupData);
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await signUp(signupData.email, signupData.password, signupData.fullName);
+    setIsLoading(false);
+
+    if (error) {
+      if (error.message.includes('already registered')) {
+        toast.error('This email is already registered. Please sign in.');
+      } else {
+        toast.error(error.message);
+      }
+    } else {
+      toast.success('Account created successfully!');
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden">
+        <div 
+          className="absolute inset-0"
+          style={{ background: 'var(--gradient-hero)' }}
+        />
+        <div className="relative z-10 flex flex-col justify-center px-12 text-primary-foreground">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center">
+              <Wrench className="w-6 h-6 text-accent-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">FieldFlow</h1>
+              <p className="text-sm opacity-80">Service Management</p>
+            </div>
+          </div>
+          
+          <h2 className="text-4xl font-bold mb-4">
+            Streamline Your Field Service Operations
+          </h2>
+          <p className="text-lg opacity-90 max-w-md">
+            Manage jobs, schedule technicians, and delight customers with our 
+            comprehensive field service management platform.
+          </p>
+          
+          <div className="mt-12 grid grid-cols-2 gap-6">
+            <div className="p-4 rounded-lg bg-primary-foreground/10">
+              <p className="text-3xl font-bold">500+</p>
+              <p className="text-sm opacity-80">Jobs Completed</p>
+            </div>
+            <div className="p-4 rounded-lg bg-primary-foreground/10">
+              <p className="text-3xl font-bold">98%</p>
+              <p className="text-sm opacity-80">Customer Satisfaction</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel - Auth Forms */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+        <Card className="w-full max-w-md shadow-lg border-0">
+          <CardHeader className="text-center pb-2">
+            <div className="lg:hidden flex items-center justify-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                <Wrench className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="text-xl font-bold">FieldFlow</span>
+            </div>
+            <CardTitle className="text-2xl">Welcome</CardTitle>
+            <CardDescription>
+              Sign in to your account or create a new one
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="login" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="login">Sign In</TabsTrigger>
+                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="login">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="login-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        className="pl-10"
+                        value={loginData.email}
+                        onChange={(e) => setLoginData(d => ({ ...d, email: e.target.value }))}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="login-password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="login-password"
+                        type="password"
+                        placeholder="••••••••"
+                        className="pl-10"
+                        value={loginData.password}
+                        onChange={(e) => setLoginData(d => ({ ...d, password: e.target.value }))}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : null}
+                    Sign In
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="signup">
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Full Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-name"
+                        type="text"
+                        placeholder="John Doe"
+                        className="pl-10"
+                        value={signupData.fullName}
+                        onChange={(e) => setSignupData(d => ({ ...d, fullName: e.target.value }))}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        className="pl-10"
+                        value={signupData.email}
+                        onChange={(e) => setSignupData(d => ({ ...d, email: e.target.value }))}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="••••••••"
+                        className="pl-10"
+                        value={signupData.password}
+                        onChange={(e) => setSignupData(d => ({ ...d, password: e.target.value }))}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : null}
+                    Create Account
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
