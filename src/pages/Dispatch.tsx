@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { ChevronLeft, ChevronRight, Filter, Search, Clock, MapPin, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Clock, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -11,16 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
-import { SkillFilter } from '@/components/dispatch/SkillFilter';
 import { notifyJobScheduled } from '@/lib/notifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-
-interface Skill {
-  id: string;
-  name: string;
-  color: string;
-}
 
 interface Job {
   id: string;
@@ -35,22 +28,18 @@ interface Job {
   assigned_technician_id: string | null;
   estimated_duration_minutes: number | null;
   customer: { name: string } | null;
-  required_skills?: Skill[];
 }
 
 interface Technician {
   id: string;
   full_name: string | null;
   avatar_url: string | null;
-  skills: Skill[];
 }
 
 export default function Dispatch() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [jobs, setJobs] = useState<Job[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -62,7 +51,7 @@ export default function Dispatch() {
 
   const fetchData = async () => {
     try {
-      // Fetch technicians with their skills
+      // Fetch technicians
       const techRolesRes = await supabase
         .from('user_roles')
         .select('user_id')
@@ -70,9 +59,8 @@ export default function Dispatch() {
 
       const techIds = techRolesRes.data?.map(r => r.user_id) || [];
 
-      const [techRes, skillsRes, jobsRes, techSkillsRes, jobSkillsRes] = await Promise.all([
+      const [techRes, jobsRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, avatar_url').in('id', techIds),
-        supabase.from('skills').select('*'),
         supabase
           .from('jobs')
           .select(`
@@ -82,33 +70,10 @@ export default function Dispatch() {
             customer:customers(name)
           `)
           .not('status', 'in', '("completed","cancelled")'),
-        supabase.from('technician_skills').select('technician_id, skill_id'),
-        supabase.from('job_required_skills').select('job_id, skill_id'),
       ]);
 
-      const skillsMap = new Map(skillsRes.data?.map(s => [s.id, s]) || []);
-
-      // Map technicians with their skills
-      const techsWithSkills: Technician[] = (techRes.data || []).map(tech => ({
-        ...tech,
-        skills: (techSkillsRes.data || [])
-          .filter(ts => ts.technician_id === tech.id)
-          .map(ts => skillsMap.get(ts.skill_id))
-          .filter(Boolean) as Skill[],
-      }));
-
-      // Map jobs with required skills
-      const jobsWithSkills: Job[] = (jobsRes.data || []).map(job => ({
-        ...job as any,
-        required_skills: (jobSkillsRes.data || [])
-          .filter(js => js.job_id === job.id)
-          .map(js => skillsMap.get(js.skill_id))
-          .filter(Boolean) as Skill[],
-      }));
-
-      setTechnicians(techsWithSkills);
-      setSkills(skillsRes.data || []);
-      setJobs(jobsWithSkills);
+      setTechnicians(techRes.data || []);
+      setJobs(jobsRes.data as unknown as Job[] || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load dispatch data');
@@ -175,14 +140,6 @@ export default function Dispatch() {
     }
   };
 
-  // Filter technicians by selected skills
-  const filteredTechnicians = technicians.filter(tech => {
-    if (selectedSkills.length === 0) return true;
-    return selectedSkills.every(skillId => 
-      tech.skills.some(s => s.id === skillId)
-    );
-  });
-
   // Unassigned jobs (no technician or not scheduled in current week)
   const unassignedJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -225,15 +182,6 @@ export default function Dispatch() {
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
-        </div>
-
-        {/* Skill Filter */}
-        <div className="mb-4">
-          <SkillFilter 
-            skills={skills}
-            selectedSkills={selectedSkills}
-            onSelectionChange={setSelectedSkills}
-          />
         </div>
 
         <DragDropContext onDragEnd={handleDragEnd}>
@@ -301,20 +249,6 @@ export default function Dispatch() {
                                       {job.estimated_duration_minutes} min
                                     </div>
                                   )}
-                                  {job.required_skills && job.required_skills.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-2">
-                                      {job.required_skills.map(skill => (
-                                        <Badge 
-                                          key={skill.id} 
-                                          variant="outline" 
-                                          className="text-xs"
-                                          style={{ borderColor: skill.color, color: skill.color }}
-                                        >
-                                          {skill.name}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </Draggable>
@@ -360,7 +294,7 @@ export default function Dispatch() {
                   </div>
 
                   {/* Technician rows */}
-                  {filteredTechnicians.map((tech) => (
+                  {technicians.map((tech) => (
                     <div key={tech.id} className="grid grid-cols-[200px_repeat(7,1fr)] border-b">
                       {/* Technician info */}
                       <div className="p-3 flex items-start gap-3 border-r bg-muted/30">
@@ -372,23 +306,6 @@ export default function Dispatch() {
                         </Avatar>
                         <div className="min-w-0">
                           <p className="font-medium truncate text-sm">{tech.full_name || 'Unknown'}</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {tech.skills.slice(0, 3).map(skill => (
-                              <Badge 
-                                key={skill.id} 
-                                variant="outline" 
-                                className="text-[10px] px-1 py-0"
-                                style={{ borderColor: skill.color, color: skill.color }}
-                              >
-                                {skill.name}
-                              </Badge>
-                            ))}
-                            {tech.skills.length > 3 && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0">
-                                +{tech.skills.length - 3}
-                              </Badge>
-                            )}
-                          </div>
                         </div>
                       </div>
 
@@ -446,9 +363,9 @@ export default function Dispatch() {
                     </div>
                   ))}
 
-                  {filteredTechnicians.length === 0 && (
+                  {technicians.length === 0 && (
                     <div className="p-8 text-center text-muted-foreground">
-                      No technicians match the selected skills
+                      No technicians available
                     </div>
                   )}
                 </div>
