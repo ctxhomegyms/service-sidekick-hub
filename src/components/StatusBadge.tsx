@@ -1,12 +1,13 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-type JobStatus = 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+type JobStatus = 'pending' | 'scheduled' | 'en_route' | 'in_progress' | 'completed' | 'cancelled';
 type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
 const statusConfig: Record<JobStatus, { label: string; className: string }> = {
   pending: { label: 'Pending', className: 'bg-status-pending text-warning-foreground' },
   scheduled: { label: 'Scheduled', className: 'bg-status-scheduled text-info-foreground' },
+  en_route: { label: 'En Route', className: 'bg-blue-500 text-white' },
   in_progress: { label: 'In Progress', className: 'bg-status-in-progress text-accent-foreground' },
   completed: { label: 'Completed', className: 'bg-status-completed text-success-foreground' },
   cancelled: { label: 'Cancelled', className: 'bg-status-cancelled text-muted-foreground' },

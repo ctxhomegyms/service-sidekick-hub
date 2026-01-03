@@ -97,6 +97,39 @@ export type Database = {
           },
         ]
       }
+      job_required_skills: {
+        Row: {
+          created_at: string
+          job_id: string
+          skill_id: string
+        }
+        Insert: {
+          created_at?: string
+          job_id: string
+          skill_id: string
+        }
+        Update: {
+          created_at?: string
+          job_id?: string
+          skill_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_required_skills_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_required_skills_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           address: string | null
@@ -201,6 +234,60 @@ export type Database = {
         }
         Relationships: []
       }
+      skills: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      technician_skills: {
+        Row: {
+          created_at: string
+          skill_id: string
+          technician_id: string
+        }
+        Insert: {
+          created_at?: string
+          skill_id: string
+          technician_id: string
+        }
+        Update: {
+          created_at?: string
+          skill_id?: string
+          technician_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technician_skills_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_skills_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -242,6 +329,7 @@ export type Database = {
       job_status:
         | "pending"
         | "scheduled"
+        | "en_route"
         | "in_progress"
         | "completed"
         | "cancelled"
@@ -377,6 +465,7 @@ export const Constants = {
       job_status: [
         "pending",
         "scheduled",
+        "en_route",
         "in_progress",
         "completed",
         "cancelled",

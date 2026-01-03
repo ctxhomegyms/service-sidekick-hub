@@ -6,7 +6,8 @@ import {
   Calendar, 
   Settings,
   LogOut,
-  Wrench
+  Wrench,
+  LayoutGrid
 } from 'lucide-react';
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +29,7 @@ import { cn } from '@/lib/utils';
 
 const adminItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Dispatch', url: '/dispatch', icon: LayoutGrid },
   { title: 'Jobs', url: '/jobs', icon: Briefcase },
   { title: 'Schedule', url: '/schedule', icon: Calendar },
   { title: 'Customers', url: '/customers', icon: Users },
