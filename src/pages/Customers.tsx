@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Phone, Mail, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -32,6 +33,7 @@ interface Customer {
 }
 
 export default function Customers() {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -248,7 +250,11 @@ export default function Customers() {
         {filteredCustomers.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredCustomers.map((customer) => (
-              <Card key={customer.id} className="animate-fade-in hover:shadow-md transition-shadow">
+              <Card 
+                key={customer.id} 
+                className="animate-fade-in hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => navigate(`/customers/${customer.id}`)}
+              >
                 <CardHeader className="pb-2">
                   <h3 className="font-semibold text-lg">{customer.name}</h3>
                 </CardHeader>
