@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useTechnicianLocations } from '@/hooks/useTechnicianLocations';
@@ -13,11 +13,20 @@ interface Job {
   address: string | null;
   city: string | null;
   state: string | null;
-  latitude?: number;
-  longitude?: number;
+  latitude: number | null;
+  longitude: number | null;
+  assigned_technician_id: string | null;
   customer?: {
     name: string;
   };
+}
+
+interface RouteInfo {
+  technicianId: string;
+  jobId: string;
+  durationMinutes: number;
+  distanceMiles: number;
+  geometry: GeoJSON.LineString;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -42,6 +51,7 @@ export const TechnicianMap: React.FC = () => {
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const { locations, loading: locationsLoading } = useTechnicianLocations();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
 
@@ -65,6 +75,7 @@ export const TechnicianMap: React.FC = () => {
         .from('jobs')
         .select(`
           id, title, status, priority, address, city, state,
+          latitude, longitude, assigned_technician_id,
           customer:customers(name)
         `)
         .in('status', ['pending', 'scheduled', 'en_route', 'in_progress']);
@@ -72,22 +83,66 @@ export const TechnicianMap: React.FC = () => {
       if (error) {
         console.error('Error fetching jobs:', error);
       } else {
-        // For demo, we'll use mock coordinates based on address
-        // In production, you'd geocode addresses or store lat/lng
-        const jobsWithCoords = (data || []).map((job, index) => ({
+        const jobsData = (data || []).map((job) => ({
           ...job,
           customer: Array.isArray(job.customer) ? job.customer[0] : job.customer,
-          // Mock coordinates around SF for demo (spread out)
-          latitude: 37.7749 + (Math.random() - 0.5) * 0.1,
-          longitude: -122.4194 + (Math.random() - 0.5) * 0.1,
         }));
-        setJobs(jobsWithCoords);
+        setJobs(jobsData);
       }
       setLoading(false);
     };
 
     fetchJobs();
   }, []);
+
+  // Calculate routes between technicians and their assigned jobs
+  const calculateRoutes = useCallback(async () => {
+    if (locations.length === 0 || jobs.length === 0) return;
+
+    const routePromises: Promise<RouteInfo | null>[] = [];
+
+    // For each job that is en_route or in_progress, calculate route from assigned technician
+    for (const job of jobs) {
+      if (!job.assigned_technician_id || !job.latitude || !job.longitude) continue;
+      if (job.status !== 'en_route' && job.status !== 'scheduled') continue;
+
+      const techLocation = locations.find(l => l.technician_id === job.assigned_technician_id);
+      if (!techLocation) continue;
+
+      const routePromise = (async (): Promise<RouteInfo | null> => {
+        try {
+          const { data, error } = await supabase.functions.invoke('calculate-route', {
+            body: {
+              origin: { latitude: techLocation.latitude, longitude: techLocation.longitude },
+              destination: { latitude: job.latitude, longitude: job.longitude }
+            }
+          });
+
+          if (error || data.error) return null;
+
+          return {
+            technicianId: techLocation.technician_id,
+            jobId: job.id,
+            durationMinutes: data.duration_minutes,
+            distanceMiles: data.distance_miles,
+            geometry: data.geometry,
+          };
+        } catch {
+          return null;
+        }
+      })();
+
+      routePromises.push(routePromise);
+    }
+
+    const results = await Promise.all(routePromises);
+    setRoutes(results.filter((r): r is RouteInfo => r !== null));
+  }, [locations, jobs]);
+
+  // Calculate routes when locations or jobs change
+  useEffect(() => {
+    calculateRoutes();
+  }, [calculateRoutes]);
 
   // Initialize map
   useEffect(() => {
@@ -110,7 +165,7 @@ export const TechnicianMap: React.FC = () => {
     };
   }, [mapboxToken]);
 
-  // Update markers when data changes
+  // Update markers and routes when data changes
   useEffect(() => {
     if (!map.current) return;
 
@@ -118,8 +173,59 @@ export const TechnicianMap: React.FC = () => {
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
 
+    // Clear existing route layers
+    routes.forEach((_, idx) => {
+      const sourceId = `route-${idx}`;
+      if (map.current?.getLayer(sourceId)) {
+        map.current.removeLayer(sourceId);
+      }
+      if (map.current?.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+    });
+
+    // Add route lines
+    routes.forEach((route, idx) => {
+      if (!map.current) return;
+      
+      const sourceId = `route-${idx}`;
+      
+      // Add route source and layer
+      if (!map.current.getSource(sourceId)) {
+        map.current.addSource(sourceId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: route.geometry,
+          },
+        });
+
+        map.current.addLayer({
+          id: sourceId,
+          type: 'line',
+          source: sourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': '#8B5CF6',
+            'line-width': 4,
+            'line-opacity': 0.7,
+          },
+        });
+      }
+    });
+
     // Add technician markers
     locations.forEach(loc => {
+      // Find route for this technician to show ETA
+      const techRoute = routes.find(r => r.technicianId === loc.technician_id);
+      const etaText = techRoute 
+        ? `<br/><span style="font-size: 11px; color: #8B5CF6;">📍 ETA to job: ${techRoute.durationMinutes} min (${techRoute.distanceMiles} mi)</span>`
+        : '';
+
       const el = document.createElement('div');
       el.className = 'technician-marker';
       el.innerHTML = `
@@ -146,6 +252,7 @@ export const TechnicianMap: React.FC = () => {
           <strong>${loc.profile?.full_name || 'Technician'}</strong>
           <br/>
           <span style="color: #10B981; font-size: 12px;">● On Shift</span>
+          ${etaText}
           <br/>
           <span style="font-size: 11px; color: #666;">
             Updated: ${new Date(loc.updated_at).toLocaleTimeString()}
@@ -164,6 +271,12 @@ export const TechnicianMap: React.FC = () => {
     // Add job markers
     jobs.forEach(job => {
       if (!job.latitude || !job.longitude) return;
+
+      // Find route for this job to show ETA
+      const jobRoute = routes.find(r => r.jobId === job.id);
+      const etaText = jobRoute 
+        ? `<br/><span style="font-size: 11px; color: #8B5CF6; margin-top: 4px; display: block;">🚗 Tech arriving in ~${jobRoute.durationMinutes} min</span>`
+        : '';
 
       const el = document.createElement('div');
       el.className = 'job-marker';
@@ -208,6 +321,7 @@ export const TechnicianMap: React.FC = () => {
           ">
             ${job.status.replace('_', ' ')}
           </span>
+          ${etaText}
           ${job.address ? `<br/><span style="font-size: 11px; color: #888;">${job.address}</span>` : ''}
         </div>
       `);
@@ -234,7 +348,7 @@ export const TechnicianMap: React.FC = () => {
         map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
       }
     }
-  }, [locations, jobs]);
+  }, [locations, jobs, routes]);
 
   if (loading || locationsLoading || !mapboxToken) {
     return (

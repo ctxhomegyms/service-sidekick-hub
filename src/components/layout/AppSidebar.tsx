@@ -8,7 +8,8 @@ import {
   LogOut,
   Wrench,
   LayoutGrid,
-  MapPin
+  MapPin,
+  ClipboardCheck
 } from 'lucide-react';
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -102,6 +103,21 @@ export function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <RouterNavLink 
+                      to="/checklist-templates"
+                      className={({ isActive }) => cn(
+                        "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                        "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        isActive && "bg-sidebar-accent text-sidebar-primary font-medium"
+                      )}
+                    >
+                      <ClipboardCheck className="w-5 h-5" />
+                      <span>Checklists</span>
+                    </RouterNavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <RouterNavLink 
