@@ -615,7 +615,7 @@ export default function Schedule() {
                   <div className="min-w-[900px]">
                     {/* Header with dates */}
                     <div className="grid grid-cols-[200px_repeat(7,1fr)] border-b sticky top-0 bg-card z-10">
-                      <div className="p-3 font-medium text-muted-foreground">Technician</div>
+                      <div className="p-3 font-medium text-muted-foreground flex items-center">Technician</div>
                       {weekDays.map((day) => (
                         <div 
                           key={day.toISOString()} 
