@@ -66,6 +66,18 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
       return;
     }
 
+    const selectedCustomer = customers.find(c => c.id === customerId);
+
+    // Validate contact info for selected channel
+    if (channel === "sms" && !selectedCustomer?.phone) {
+      toast.error("Selected customer has no phone number for SMS");
+      return;
+    }
+    if (channel === "email" && !selectedCustomer?.email) {
+      toast.error("Selected customer has no email address");
+      return;
+    }
+
     setLoading(true);
     try {
       // Create conversation
@@ -99,9 +111,45 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
           .from("conversations")
           .update({ status: "responded" })
           .eq("id", convData.id);
+
+        // Send via appropriate channel
+        if (channel === "sms" && selectedCustomer?.phone) {
+          const { error: smsError } = await supabase.functions.invoke("send-sms", {
+            body: {
+              to: selectedCustomer.phone,
+              message: initialMessage.trim(),
+              conversationId: convData.id,
+            },
+          });
+
+          if (smsError) {
+            console.error("SMS send error:", smsError);
+            toast.warning("Conversation created but SMS delivery failed");
+          } else {
+            toast.success("SMS sent successfully");
+          }
+        }
+
+        if (channel === "email" && selectedCustomer?.email) {
+          const { error: emailError } = await supabase.functions.invoke("send-email", {
+            body: {
+              to: selectedCustomer.email,
+              subject: subject || "New message",
+              content: initialMessage.trim(),
+            },
+          });
+
+          if (emailError) {
+            console.error("Email send error:", emailError);
+            toast.warning("Conversation created but email delivery failed");
+          } else {
+            toast.success("Email sent successfully");
+          }
+        }
+      } else {
+        toast.success("Conversation created");
       }
 
-      toast.success("Conversation created");
       resetForm();
       onCreated(convData.id);
     } catch (error: any) {
