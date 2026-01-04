@@ -198,6 +198,29 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
     fetchData();
   }, [conversationId]);
 
+  // Real-time subscription for messages
+  useEffect(() => {
+    const messagesChannel = supabase
+      .channel(`conversation-messages-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'conversation_messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          setMessages((prev) => [...prev, payload.new as Message]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [conversationId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
