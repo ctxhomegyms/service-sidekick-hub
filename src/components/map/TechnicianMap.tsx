@@ -263,11 +263,11 @@ export const TechnicianMap: React.FC<TechnicianMapProps> = ({ onStatsChange }) =
     setRoutes(results.filter((r): r is RouteInfo => r !== null));
   }, [locations, jobs]);
 
-  // Calculate routes when locations or jobs change, and periodically refresh
+  // Calculate routes when locations or jobs change, and periodically refresh (every 30 seconds for more real-time ETAs)
   useEffect(() => {
     calculateRoutes();
     
-    const interval = setInterval(calculateRoutes, 60000);
+    const interval = setInterval(calculateRoutes, 30000);
     return () => clearInterval(interval);
   }, [calculateRoutes]);
 
@@ -443,6 +443,44 @@ export const TechnicianMap: React.FC<TechnicianMapProps> = ({ onStatsChange }) =
             });
 
             routeSourcesRef.current.push(sourceId);
+
+            // Add floating ETA label on the route midpoint
+            if (route.geometry.coordinates.length > 0) {
+              const midIdx = Math.floor(route.geometry.coordinates.length / 2);
+              const midpoint = route.geometry.coordinates[midIdx];
+              
+              const etaEl = document.createElement('div');
+              etaEl.className = 'eta-label';
+              etaEl.innerHTML = `
+                <div style="
+                  background: ${isLate ? '#EF4444' : (isEnRoute ? '#10B981' : '#8B5CF6')};
+                  color: white;
+                  padding: 4px 8px;
+                  border-radius: 12px;
+                  font-size: 11px;
+                  font-weight: 600;
+                  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                  white-space: nowrap;
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                ">
+                  <span>🚗</span>
+                  <span>${route.durationMinutes} min</span>
+                  <span style="opacity: 0.8; font-size: 10px;">(${route.distanceMiles} mi)</span>
+                  ${isLate ? '<span>⚠️</span>' : ''}
+                </div>
+              `;
+
+              const etaMarker = new mapboxgl.Marker({
+                element: etaEl,
+                anchor: 'center',
+              })
+                .setLngLat([midpoint[0], midpoint[1]])
+                .addTo(currentMap);
+
+              markersRef.current.push(etaMarker);
+            }
           } catch (e) {
             console.warn('Error adding route layer:', e);
           }
