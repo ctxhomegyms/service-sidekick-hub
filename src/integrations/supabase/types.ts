@@ -363,6 +363,8 @@ export type Database = {
           scheduled_time: string | null
           state: string | null
           status: Database["public"]["Enums"]["job_status"]
+          time_window_end: string | null
+          time_window_start: string | null
           title: string
           updated_at: string
           zip_code: string | null
@@ -386,6 +388,8 @@ export type Database = {
           scheduled_time?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
+          time_window_end?: string | null
+          time_window_start?: string | null
           title: string
           updated_at?: string
           zip_code?: string | null
@@ -409,6 +413,8 @@ export type Database = {
           scheduled_time?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
+          time_window_end?: string | null
+          time_window_start?: string | null
           title?: string
           updated_at?: string
           zip_code?: string | null

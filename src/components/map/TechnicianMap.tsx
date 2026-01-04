@@ -16,6 +16,9 @@ interface Job {
   latitude: number | null;
   longitude: number | null;
   assigned_technician_id: string | null;
+  scheduled_time: string | null;
+  time_window_start: string | null;
+  time_window_end: string | null;
   customer?: {
     name: string;
   };
@@ -76,6 +79,7 @@ export const TechnicianMap: React.FC = () => {
         .select(`
           id, title, status, priority, address, city, state,
           latitude, longitude, assigned_technician_id,
+          scheduled_time, time_window_start, time_window_end,
           customer:customers(name)
         `)
         .in('status', ['pending', 'scheduled', 'en_route', 'in_progress']);
@@ -93,6 +97,27 @@ export const TechnicianMap: React.FC = () => {
     };
 
     fetchJobs();
+
+    // Subscribe to real-time job updates
+    const jobChannel = supabase
+      .channel('job-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'jobs',
+        },
+        () => {
+          // Refetch jobs on any change
+          fetchJobs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(jobChannel);
+    };
   }, []);
 
   // Calculate routes between technicians and their assigned jobs
@@ -139,9 +164,13 @@ export const TechnicianMap: React.FC = () => {
     setRoutes(results.filter((r): r is RouteInfo => r !== null));
   }, [locations, jobs]);
 
-  // Calculate routes when locations or jobs change
+  // Calculate routes when locations or jobs change, and periodically refresh
   useEffect(() => {
     calculateRoutes();
+    
+    // Refresh routes every 60 seconds for live ETA updates
+    const interval = setInterval(calculateRoutes, 60000);
+    return () => clearInterval(interval);
   }, [calculateRoutes]);
 
   // Initialize map
@@ -176,21 +205,30 @@ export const TechnicianMap: React.FC = () => {
     // Clear existing route layers
     routes.forEach((_, idx) => {
       const sourceId = `route-${idx}`;
+      const outlineId = `route-outline-${idx}`;
       if (map.current?.getLayer(sourceId)) {
         map.current.removeLayer(sourceId);
+      }
+      if (map.current?.getLayer(outlineId)) {
+        map.current.removeLayer(outlineId);
       }
       if (map.current?.getSource(sourceId)) {
         map.current.removeSource(sourceId);
       }
     });
 
-    // Add route lines
+    // Add route lines with dashed animation for en_route jobs
     routes.forEach((route, idx) => {
       if (!map.current) return;
       
       const sourceId = `route-${idx}`;
+      const outlineId = `route-outline-${idx}`;
       
-      // Add route source and layer
+      // Find if this route's job is en_route
+      const job = jobs.find(j => j.id === route.jobId);
+      const isEnRoute = job?.status === 'en_route';
+      
+      // Add route source and layers
       if (!map.current.getSource(sourceId)) {
         map.current.addSource(sourceId, {
           type: 'geojson',
@@ -201,6 +239,23 @@ export const TechnicianMap: React.FC = () => {
           },
         });
 
+        // Outline layer for better visibility
+        map.current.addLayer({
+          id: outlineId,
+          type: 'line',
+          source: sourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': 7,
+            'line-opacity': 0.8,
+          },
+        });
+
+        // Main route layer
         map.current.addLayer({
           id: sourceId,
           type: 'line',
@@ -210,9 +265,10 @@ export const TechnicianMap: React.FC = () => {
             'line-cap': 'round',
           },
           paint: {
-            'line-color': '#8B5CF6',
+            'line-color': isEnRoute ? '#10B981' : '#8B5CF6',
             'line-width': 4,
-            'line-opacity': 0.7,
+            'line-opacity': 0.9,
+            'line-dasharray': isEnRoute ? [2, 1] : [1],
           },
         });
       }
@@ -278,6 +334,15 @@ export const TechnicianMap: React.FC = () => {
         ? `<br/><span style="font-size: 11px; color: #8B5CF6; margin-top: 4px; display: block;">🚗 Tech arriving in ~${jobRoute.durationMinutes} min</span>`
         : '';
 
+      // Time window display
+      const timeWindowText = job.time_window_start && job.time_window_end
+        ? `<br/><span style="font-size: 11px; color: #666;">⏰ Window: ${job.time_window_start.slice(0, 5)} - ${job.time_window_end.slice(0, 5)}</span>`
+        : '';
+
+      const scheduledTimeText = job.scheduled_time
+        ? `<br/><span style="font-size: 11px; color: #666;">📅 Scheduled: ${job.scheduled_time.slice(0, 5)}</span>`
+        : '';
+
       const el = document.createElement('div');
       el.className = 'job-marker';
       const color = job.status === 'pending' 
@@ -321,6 +386,8 @@ export const TechnicianMap: React.FC = () => {
           ">
             ${job.status.replace('_', ' ')}
           </span>
+          ${scheduledTimeText}
+          ${timeWindowText}
           ${etaText}
           ${job.address ? `<br/><span style="font-size: 11px; color: #888;">${job.address}</span>` : ''}
         </div>

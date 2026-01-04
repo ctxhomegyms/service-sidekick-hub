@@ -76,6 +76,8 @@ export default function Jobs() {
     priority: 'low' | 'medium' | 'high' | 'urgent';
     scheduled_date: string;
     scheduled_time: string;
+    time_window_start: string;
+    time_window_end: string;
     address: string;
     city: string;
     state: string;
@@ -89,6 +91,8 @@ export default function Jobs() {
     priority: 'medium',
     scheduled_date: '',
     scheduled_time: '',
+    time_window_start: '',
+    time_window_end: '',
     address: '',
     city: '',
     state: '',
@@ -189,6 +193,8 @@ export default function Jobs() {
         priority: newJob.priority,
         scheduled_date: newJob.scheduled_date || null,
         scheduled_time: newJob.scheduled_time || null,
+        time_window_start: newJob.time_window_start || null,
+        time_window_end: newJob.time_window_end || null,
         address: newJob.address || null,
         city: newJob.city || null,
         state: newJob.state || null,
@@ -230,6 +236,8 @@ export default function Jobs() {
         priority: 'medium',
         scheduled_date: '',
         scheduled_time: '',
+        time_window_start: '',
+        time_window_end: '',
         address: '',
         city: '',
         state: '',
@@ -335,7 +343,17 @@ export default function Jobs() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="date">Scheduled Date</Label>
+                      <Input
+                        id="date"
+                        type="date"
+                        value={newJob.scheduled_date}
+                        onChange={(e) => setNewJob(j => ({ ...j, scheduled_date: e.target.value }))}
+                      />
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="priority">Priority</Label>
                       <Select
@@ -355,24 +373,38 @@ export default function Jobs() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
 
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="date">Scheduled Date</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        value={newJob.scheduled_date}
-                        onChange={(e) => setNewJob(j => ({ ...j, scheduled_date: e.target.value }))}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="time">Time</Label>
+                      <Label htmlFor="time">Scheduled Time</Label>
                       <Input
                         id="time"
                         type="time"
                         value={newJob.scheduled_time}
                         onChange={(e) => setNewJob(j => ({ ...j, scheduled_time: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="window_start">Time Window Start</Label>
+                      <Input
+                        id="window_start"
+                        type="time"
+                        value={newJob.time_window_start}
+                        onChange={(e) => setNewJob(j => ({ ...j, time_window_start: e.target.value }))}
+                        placeholder="e.g., 09:00"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="window_end">Time Window End</Label>
+                      <Input
+                        id="window_end"
+                        type="time"
+                        value={newJob.time_window_end}
+                        onChange={(e) => setNewJob(j => ({ ...j, time_window_end: e.target.value }))}
+                        placeholder="e.g., 17:00"
                       />
                     </div>
                   </div>
