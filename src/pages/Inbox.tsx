@@ -138,6 +138,39 @@ export default function Inbox() {
     fetchConversations();
   }, [channelFilter, statusFilter]);
 
+  // Real-time subscription for conversations and messages
+  useEffect(() => {
+    const conversationsChannel = supabase
+      .channel('inbox-conversations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+        },
+        () => {
+          fetchConversations();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'conversation_messages',
+        },
+        () => {
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(conversationsChannel);
+    };
+  }, [channelFilter, statusFilter]);
+
   const filteredConversations = conversations.filter((conv) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
