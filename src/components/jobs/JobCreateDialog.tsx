@@ -28,7 +28,7 @@ import { TagSelector } from './TagSelector';
 import { LineItemsEditor, LineItem } from './LineItemsEditor';
 import { RecurrenceSettings, RecurrencePattern } from './RecurrenceSettings';
 import { CollapsibleSection } from './CollapsibleSection';
-import { Calendar, Users, Tag, ClipboardList, Settings, FileText } from 'lucide-react';
+import { Calendar, Users, Tag, ClipboardList, Settings, FileText, Sliders } from 'lucide-react';
 
 interface JobType {
   id: string;
@@ -39,6 +39,14 @@ interface JobType {
 interface ChecklistTemplate {
   id: string;
   name: string;
+}
+
+interface CustomFieldDefinition {
+  id: string;
+  name: string;
+  field_type: string;
+  is_required: boolean;
+  options: string[] | null;
 }
 
 interface JobCreateDialogProps {
@@ -52,6 +60,8 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [jobTypes, setJobTypes] = useState<JobType[]>([]);
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
 
   // Form state
   const [customerId, setCustomerId] = useState('');
@@ -88,13 +98,15 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
   }, [open]);
 
   const fetchData = async () => {
-    const [jobTypesRes, templatesRes] = await Promise.all([
+    const [jobTypesRes, templatesRes, customFieldsRes] = await Promise.all([
       supabase.from('job_types').select('id, name, color').order('name'),
       supabase.from('checklist_templates').select('id, name').order('name'),
+      supabase.from('custom_field_definitions').select('id, name, field_type, is_required, options').order('name'),
     ]);
 
     if (jobTypesRes.data) setJobTypes(jobTypesRes.data);
     if (templatesRes.data) setTemplates(templatesRes.data);
+    if (customFieldsRes.data) setCustomFields(customFieldsRes.data as CustomFieldDefinition[]);
   };
 
   const resetForm = () => {
@@ -105,6 +117,7 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
     setCrewIds([]);
     setTagIds([]);
     setLineItems([]);
+    setCustomFieldValues({});
     setFormData({
       jobName: '',
       jobTypeId: '',
@@ -241,7 +254,19 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
         }
       }
 
-      // Send notification if scheduled with customer
+      // Add custom field values
+      const customFieldInserts = Object.entries(customFieldValues)
+        .filter(([_, value]) => value !== '' && value !== null && value !== undefined)
+        .map(([fieldId, value]) => ({
+          job_id: jobId,
+          field_id: fieldId,
+          value: JSON.stringify(value),
+        }));
+      
+      if (customFieldInserts.length > 0) {
+        await supabase.from('job_custom_field_values').insert(customFieldInserts);
+      }
+
       if (isScheduled && customerId) {
         notifyJobScheduled(jobId);
       }
@@ -556,7 +581,79 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
                 <LineItemsEditor items={lineItems} onChange={setLineItems} />
               </CollapsibleSection>
 
-              {/* Instructions Section */}
+              {/* Custom Fields Section */}
+              {customFields.length > 0 && (
+                <CollapsibleSection 
+                  title="Custom Fields" 
+                  icon={<Sliders className="w-4 h-4" />}
+                  defaultOpen={false}
+                >
+                  <div className="space-y-4">
+                    {customFields.map((field) => (
+                      <div key={field.id} className="space-y-2">
+                        <Label htmlFor={`custom-${field.id}`}>
+                          {field.name}
+                          {field.is_required && <span className="text-destructive ml-1">*</span>}
+                        </Label>
+                        {field.field_type === 'text' && (
+                          <Input
+                            id={`custom-${field.id}`}
+                            value={customFieldValues[field.id] || ''}
+                            onChange={(e) => setCustomFieldValues(v => ({ ...v, [field.id]: e.target.value }))}
+                            required={field.is_required}
+                          />
+                        )}
+                        {field.field_type === 'number' && (
+                          <Input
+                            id={`custom-${field.id}`}
+                            type="number"
+                            value={customFieldValues[field.id] || ''}
+                            onChange={(e) => setCustomFieldValues(v => ({ ...v, [field.id]: e.target.value }))}
+                            required={field.is_required}
+                          />
+                        )}
+                        {field.field_type === 'date' && (
+                          <Input
+                            id={`custom-${field.id}`}
+                            type="date"
+                            value={customFieldValues[field.id] || ''}
+                            onChange={(e) => setCustomFieldValues(v => ({ ...v, [field.id]: e.target.value }))}
+                            required={field.is_required}
+                          />
+                        )}
+                        {field.field_type === 'checkbox' && (
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id={`custom-${field.id}`}
+                              checked={customFieldValues[field.id] || false}
+                              onCheckedChange={(checked) => setCustomFieldValues(v => ({ ...v, [field.id]: checked === true }))}
+                            />
+                            <Label htmlFor={`custom-${field.id}`} className="text-sm font-normal cursor-pointer">
+                              Yes
+                            </Label>
+                          </div>
+                        )}
+                        {field.field_type === 'dropdown' && field.options && (
+                          <Select
+                            value={customFieldValues[field.id] || ''}
+                            onValueChange={(value) => setCustomFieldValues(v => ({ ...v, [field.id]: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={`Select ${field.name.toLowerCase()}`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {field.options.map((option) => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleSection>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="instructions">Instructions</Label>
                 <Textarea
