@@ -57,17 +57,33 @@ export const TechnicianMap: React.FC = () => {
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [mapboxTokenError, setMapboxTokenError] = useState<string | null>(null);
 
-  // Fetch Mapbox token from edge function secrets
+  // Fetch Mapbox token from backend secrets
   useEffect(() => {
     const fetchToken = async () => {
       const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-      if (data?.token) {
-        setMapboxToken(data.token);
+
+      const token = data?.token as string | undefined;
+
+      if (token) {
+        // Mapbox GL JS requires a public token (pk.*). If a secret token (sk.*) is used,
+        // Mapbox will throw and crash the page.
+        if (token.startsWith('sk.')) {
+          setMapboxToken(null);
+          setMapboxTokenError('Your Mapbox token is a secret token (sk.*). Map rendering requires a public token (pk.*).');
+          return;
+        }
+
+        setMapboxToken(token);
+        setMapboxTokenError(null);
       } else {
         console.error('Failed to fetch Mapbox token:', error);
+        setMapboxToken(null);
+        setMapboxTokenError('Mapbox token is not configured.');
       }
     };
+
     fetchToken();
   }, []);
 
@@ -175,6 +191,7 @@ export const TechnicianMap: React.FC = () => {
 
   // Initialize map
   useEffect(() => {
+    if (mapboxTokenError) return;
     if (!mapContainer.current || !mapboxToken || map.current) return;
 
     mapboxgl.accessToken = mapboxToken;
@@ -192,7 +209,7 @@ export const TechnicianMap: React.FC = () => {
       map.current?.remove();
       map.current = null;
     };
-  }, [mapboxToken]);
+  }, [mapboxToken, mapboxTokenError]);
 
   // Track added route source IDs for cleanup
   const routeSourcesRef = useRef<string[]>([]);
@@ -441,6 +458,20 @@ export const TechnicianMap: React.FC = () => {
       currentMap.once('load', updateMapData);
     }
   }, [locations, jobs, routes]);
+
+  if (mapboxTokenError) {
+    return (
+      <div className="flex items-center justify-center h-full bg-muted/30 rounded-lg p-6">
+        <div className="max-w-md text-center space-y-2">
+          <div className="text-sm font-semibold">Map token configuration error</div>
+          <div className="text-sm text-muted-foreground">{mapboxTokenError}</div>
+          <div className="text-xs text-muted-foreground">
+            Update the <span className="font-mono">MAPBOX_PUBLIC_TOKEN</span> secret to a public token (<span className="font-mono">pk.*</span>).
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || locationsLoading || !mapboxToken) {
     return (
