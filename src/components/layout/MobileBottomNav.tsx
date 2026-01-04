@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, Map, Calendar, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSidebar } from '@/components/ui/sidebar';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -12,6 +13,15 @@ const navItems = [
 
 export function MobileBottomNav() {
   const location = useLocation();
+  const { openMobile, setOpenMobile } = useSidebar();
+
+  const handleNavClick = (to: string) => {
+    const isActive = location.pathname === to || location.pathname.startsWith(`${to}/`);
+    // If clicking the active tab and sidebar is open, close it
+    if (isActive && openMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-bottom">
@@ -23,6 +33,7 @@ export function MobileBottomNav() {
             <NavLink
               key={to}
               to={to}
+              onClick={() => handleNavClick(to)}
               className={cn(
                 "flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors",
                 "active:bg-accent/50",
