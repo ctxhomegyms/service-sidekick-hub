@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { PhotoUpload, PhotoGallery } from '@/components/jobs/PhotoUpload';
 import { SignaturePad, SignatureDisplay } from '@/components/jobs/SignaturePad';
 import { JobNotes } from '@/components/jobs/JobNotes';
+import { LocationPermission } from '@/components/technician/LocationPermission';
 import { notifyTechnicianEnRoute, notifyJobCompleted } from '@/lib/notifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -310,10 +311,15 @@ export default function MyJobs() {
       <div className="space-y-4 md:space-y-6">
         {/* Header - hide on mobile when viewing detail */}
         {!showMobileDetail && (
-          <div className="px-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Jobs</h1>
-            <p className="text-sm md:text-base text-muted-foreground">Your assigned jobs</p>
-          </div>
+          <>
+            <div className="px-1">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Jobs</h1>
+              <p className="text-sm md:text-base text-muted-foreground">Your assigned jobs</p>
+            </div>
+            
+            {/* Location Permission Banner */}
+            <LocationPermission />
+          </>
         )}
 
         {/* Mobile Detail View */}
