@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, startOfWeek, addDays, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { ChevronLeft, ChevronRight, Search, Clock, MapPin, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Clock, MapPin, PanelLeftClose, PanelLeft, Smartphone, Monitor } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -19,11 +19,10 @@ import { RouteOptimizer } from '@/components/dispatch/RouteOptimizer';
 import { notifyJobScheduled } from '@/lib/notifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile, useForceMobileLayout } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-
 type JobStatus = 'pending' | 'scheduled' | 'en_route' | 'in_progress' | 'completed' | 'cancelled';
 type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -65,6 +64,7 @@ interface Technician {
 export default function Schedule() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [forceMobile, setForceMobile] = useForceMobileLayout();
   const { isManager } = useAuth();
   
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -303,55 +303,70 @@ export default function Schedule() {
   if (isMobile) {
     return (
       <AppLayout>
-        <div className="flex flex-col h-full">
-          {/* Mobile Header */}
-          <div className="p-4 border-b">
-            <h1 className="text-xl font-bold">Schedule</h1>
+        <div className="flex flex-col h-[100dvh] overflow-hidden">
+          {/* Mobile Header - compact */}
+          <div className="shrink-0 px-4 py-3 border-b bg-background">
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="text-lg font-bold">Schedule</h1>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="h-8 gap-1 text-xs"
+                onClick={() => setForceMobile(!forceMobile)}
+              >
+                {forceMobile ? <Monitor className="w-4 h-4" /> : <Smartphone className="w-4 h-4" />}
+                {forceMobile ? 'Desktop' : 'Mobile'}
+              </Button>
+            </div>
             <div className="flex items-center gap-2 mt-2">
-              <Button variant="outline" size="sm" onClick={() => navigatePeriod('prev')}>
+              <Button variant="outline" size="sm" className="h-9" onClick={() => navigatePeriod('prev')}>
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <Button variant="outline" size="sm" className="flex-1" onClick={goToToday}>
+              <Button variant="outline" size="sm" className="flex-1 h-9 text-sm font-medium" onClick={goToToday}>
                 {format(currentDate, 'EEE, MMM d')}
               </Button>
-              <Button variant="outline" size="sm" onClick={() => navigatePeriod('next')}>
+              <Button variant="outline" size="sm" className="h-9" onClick={() => navigatePeriod('next')}>
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           </div>
 
           {/* Mobile Tabs */}
-          <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as 'unassigned' | 'schedule')} className="flex-1 flex flex-col">
-            <TabsList className="mx-4 mt-2 grid grid-cols-2">
-              <TabsTrigger value="schedule" className="gap-1">
+          <Tabs 
+            value={mobileTab} 
+            onValueChange={(v) => setMobileTab(v as 'unassigned' | 'schedule')} 
+            className="flex-1 flex flex-col min-h-0 overflow-hidden"
+          >
+            <TabsList className="shrink-0 mx-4 mt-2 grid grid-cols-2 h-10">
+              <TabsTrigger value="schedule" className="gap-1.5 text-sm h-full">
                 Schedule
               </TabsTrigger>
               {isManager && (
-                <TabsTrigger value="unassigned" className="gap-1">
+                <TabsTrigger value="unassigned" className="gap-1.5 text-sm h-full">
                   <Clock className="w-4 h-4" />
                   Unassigned ({unassignedJobs.length})
                 </TabsTrigger>
               )}
             </TabsList>
 
-            <TabsContent value="schedule" className="flex-1 m-0 p-4">
-              <ScrollArea className="h-[calc(100vh-280px)]">
-                <div className="space-y-4">
+            <TabsContent value="schedule" className="flex-1 m-0 p-4 overflow-hidden">
+              <ScrollArea className="h-full">
+                <div className="space-y-3 pb-4">
                   {technicians.map((tech) => {
                     const dayJobs = getJobsForTechOnDay(tech.id, currentDate);
                     return (
                       <Card key={tech.id}>
                         <CardHeader className="py-3 px-4">
                           <div className="flex items-center gap-3">
-                            <Avatar className="w-8 h-8">
+                            <Avatar className="w-10 h-10">
                               <AvatarImage src={tech.avatar_url || undefined} />
-                              <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+                              <AvatarFallback className="bg-accent text-accent-foreground text-sm">
                                 {getInitials(tech.full_name)}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-medium text-sm">{tech.full_name || 'Unknown'}</p>
-                              <p className="text-xs text-muted-foreground">{dayJobs.length} jobs</p>
+                              <p className="font-medium text-base">{tech.full_name || 'Unknown'}</p>
+                              <p className="text-sm text-muted-foreground">{dayJobs.length} jobs</p>
                             </div>
                           </div>
                         </CardHeader>
@@ -359,13 +374,13 @@ export default function Schedule() {
                           <CardContent className="pt-0 pb-3 px-4">
                             <div className="space-y-2">
                               {dayJobs.map((job) => (
-                                <div key={job.id} className="p-2 bg-muted rounded text-xs">
-                                  <div className="flex items-center justify-between gap-1 mb-1">
-                                    <span className="font-medium truncate">{job.title}</span>
-                                    <StatusBadge status={job.status} className="text-[10px] px-1 py-0" />
+                                <div key={job.id} className="p-3 bg-muted rounded-lg">
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    <span className="font-medium text-sm truncate">{job.title}</span>
+                                    <StatusBadge status={job.status} className="text-xs px-2 py-0.5" />
                                   </div>
                                   {job.scheduled_time && (
-                                    <span className="text-muted-foreground">
+                                    <span className="text-sm text-muted-foreground">
                                       {job.scheduled_time.slice(0, 5)}
                                     </span>
                                   )}
@@ -378,45 +393,52 @@ export default function Schedule() {
                     );
                   })}
                   {technicians.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">
-                      No technicians available
-                    </p>
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <p className="text-muted-foreground text-base">
+                        No technicians available
+                      </p>
+                      {isManager && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Invite technicians from the Users page
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </ScrollArea>
             </TabsContent>
 
             {isManager && (
-              <TabsContent value="unassigned" className="flex-1 m-0 p-4">
+              <TabsContent value="unassigned" className="flex-1 m-0 p-4 overflow-hidden flex flex-col">
                 <Input
                   placeholder="Search jobs..."
-                  className="mb-3"
+                  className="mb-3 h-10 text-base shrink-0"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <ScrollArea className="h-[calc(100vh-280px)]">
-                  <div className="space-y-2">
+                <ScrollArea className="flex-1">
+                  <div className="space-y-2 pb-4">
                     {unassignedJobs.map((job) => (
                       <Card key={job.id} className="p-3">
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <h4 className="font-medium text-sm truncate">{job.title}</h4>
+                          <h4 className="font-medium text-base truncate">{job.title}</h4>
                           <PriorityBadge priority={job.priority} />
                         </div>
                         {job.customer && (
-                          <p className="text-xs text-muted-foreground truncate mb-1">
+                          <p className="text-sm text-muted-foreground truncate mb-1">
                             {job.customer.name}
                           </p>
                         )}
                         {job.city && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <MapPin className="w-3 h-3" />
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <MapPin className="w-4 h-4" />
                             {job.city}
                           </div>
                         )}
                       </Card>
                     ))}
                     {unassignedJobs.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8 text-sm">
+                      <p className="text-center text-muted-foreground py-12 text-base">
                         No unassigned jobs
                       </p>
                     )}
