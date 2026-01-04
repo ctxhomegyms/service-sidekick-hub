@@ -229,13 +229,35 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
         toast.success("SMS sent via Twilio");
       }
 
+      // For Email channel, send via Resend
+      if (conversation?.channel === "email" && conversation?.customer?.email) {
+        const { data, error: fnError } = await supabase.functions.invoke("send-email", {
+          body: {
+            to: conversation.customer.email,
+            subject: conversation.subject || "Message from Field Service",
+            content: newMessage.trim(),
+          },
+        });
+
+        if (fnError) {
+          console.error("Resend email error:", fnError);
+          throw new Error(fnError.message || "Failed to send email via Resend");
+        }
+
+        if (data?.error) {
+          throw new Error(data.error);
+        }
+
+        toast.success("Email sent via Resend");
+      }
+
       // Save the message to the database
       const { error } = await supabase.from("conversation_messages").insert({
         conversation_id: conversationId,
         direction: "outbound" as MessageDirection,
         content: newMessage.trim(),
         sender_name: user.email,
-        sender_contact: conversation?.channel === "sms" ? conversation?.customer?.phone : null,
+        sender_contact: conversation?.channel === "sms" ? conversation?.customer?.phone : conversation?.customer?.email,
       });
 
       if (error) throw error;
@@ -250,7 +272,7 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
       fetchData();
       onUpdate();
       
-      if (conversation?.channel !== "sms") {
+      if (conversation?.channel !== "sms" && conversation?.channel !== "email") {
         toast.success("Message sent");
       }
     } catch (error: any) {
