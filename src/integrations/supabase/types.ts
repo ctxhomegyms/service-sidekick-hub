@@ -90,6 +90,33 @@ export type Database = {
           },
         ]
       }
+      custom_field_definitions: {
+        Row: {
+          created_at: string
+          field_type: string
+          id: string
+          is_required: boolean
+          name: string
+          options: Json | null
+        }
+        Insert: {
+          created_at?: string
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          name: string
+          options?: Json | null
+        }
+        Update: {
+          created_at?: string
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          name?: string
+          options?: Json | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -187,6 +214,119 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "job_checklist_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_crew: {
+        Row: {
+          created_at: string
+          is_primary: boolean
+          job_id: string
+          technician_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_primary?: boolean
+          job_id: string
+          technician_id: string
+        }
+        Update: {
+          created_at?: string
+          is_primary?: boolean
+          job_id?: string
+          technician_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_crew_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_crew_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_custom_field_values: {
+        Row: {
+          created_at: string
+          field_id: string
+          id: string
+          job_id: string
+          value: Json | null
+        }
+        Insert: {
+          created_at?: string
+          field_id: string
+          id?: string
+          job_id: string
+          value?: Json | null
+        }
+        Update: {
+          created_at?: string
+          field_id?: string
+          id?: string
+          job_id?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_custom_field_values_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "custom_field_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_custom_field_values_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_line_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          job_id: string
+          quantity: number
+          sort_order: number
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          job_id: string
+          quantity?: number
+          sort_order?: number
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          job_id?: string
+          quantity?: number
+          sort_order?: number
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_line_items_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
@@ -343,6 +483,60 @@ export type Database = {
           },
         ]
       }
+      job_tags: {
+        Row: {
+          created_at: string
+          job_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          job_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          job_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_tags_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_types: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           address: string | null
@@ -354,11 +548,19 @@ export type Database = {
           created_by: string | null
           customer_id: string | null
           description: string | null
+          end_date: string | null
+          end_time: string | null
           estimated_duration_minutes: number | null
           id: string
+          instructions: string | null
+          is_recurring: boolean
+          job_number: string | null
+          job_type_id: string | null
           latitude: number | null
           longitude: number | null
+          parent_job_id: string | null
           priority: Database["public"]["Enums"]["job_priority"]
+          recurrence_pattern: Json | null
           scheduled_date: string | null
           scheduled_time: string | null
           state: string | null
@@ -379,11 +581,19 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           description?: string | null
+          end_date?: string | null
+          end_time?: string | null
           estimated_duration_minutes?: number | null
           id?: string
+          instructions?: string | null
+          is_recurring?: boolean
+          job_number?: string | null
+          job_type_id?: string | null
           latitude?: number | null
           longitude?: number | null
+          parent_job_id?: string | null
           priority?: Database["public"]["Enums"]["job_priority"]
+          recurrence_pattern?: Json | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           state?: string | null
@@ -404,11 +614,19 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           description?: string | null
+          end_date?: string | null
+          end_time?: string | null
           estimated_duration_minutes?: number | null
           id?: string
+          instructions?: string | null
+          is_recurring?: boolean
+          job_number?: string | null
+          job_type_id?: string | null
           latitude?: number | null
           longitude?: number | null
+          parent_job_id?: string | null
           priority?: Database["public"]["Enums"]["job_priority"]
+          recurrence_pattern?: Json | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           state?: string | null
@@ -425,6 +643,20 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_job_type_id_fkey"
+            columns: ["job_type_id"]
+            isOneToOne: false
+            referencedRelation: "job_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_parent_job_id_fkey"
+            columns: ["parent_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -561,6 +793,27 @@ export type Database = {
         Relationships: []
       }
       skills: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      tags: {
         Row: {
           color: string | null
           created_at: string
