@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { JobTypesManager } from '@/components/settings/JobTypesManager';
+import { CustomFieldsManager } from '@/components/settings/CustomFieldsManager';
 
 export default function Settings() {
   const { profile, roles } = useAuth();
@@ -49,6 +50,8 @@ export default function Settings() {
         </Card>
 
         <JobTypesManager />
+
+        <CustomFieldsManager />
 
         <Card>
           <CardHeader>
