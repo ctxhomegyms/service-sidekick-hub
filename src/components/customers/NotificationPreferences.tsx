@@ -150,9 +150,8 @@ export function NotificationPreferences({ customerId }: NotificationPreferencesP
           <div className="flex items-center gap-2 mb-4">
             <MessageSquare className="w-4 h-4 text-muted-foreground" />
             <h4 className="font-medium">SMS Notifications</h4>
-            <span className="text-xs bg-muted px-2 py-0.5 rounded">Coming Soon</span>
           </div>
-          <div className="space-y-4 opacity-50">
+          <div className="space-y-4">
             {notificationTypes.map((type) => {
               const key = `sms_${type.key}` as keyof Preferences;
               return (
@@ -167,7 +166,7 @@ export function NotificationPreferences({ customerId }: NotificationPreferencesP
                     id={key}
                     checked={preferences[key]}
                     onCheckedChange={(checked) => updatePreference(key, checked)}
-                    disabled={true}
+                    disabled={isSaving}
                   />
                 </div>
               );

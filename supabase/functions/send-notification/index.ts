@@ -2,6 +2,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +16,8 @@ interface NotificationRequest {
   notification_type: "job_scheduled" | "technician_en_route" | "job_completed";
 }
 
-const notificationTemplates = {
+// Email templates (HTML)
+const emailTemplates = {
   job_scheduled: {
     subject: "Your Service Appointment is Scheduled",
     getBody: (job: any, technician: any) => `
@@ -68,8 +72,30 @@ const notificationTemplates = {
   },
 };
 
+// SMS templates (concise text-only)
+const smsTemplates = {
+  job_scheduled: (job: any, technician: any) => 
+    `Hi ${job.customer?.name || "there"}! Your service "${job.title}" is confirmed for ${job.scheduled_date || "TBD"} at ${job.scheduled_time?.slice(0, 5) || "TBD"}.${technician ? ` Tech: ${technician.full_name}.` : ""} We'll notify you when they're on the way.`,
+  
+  technician_en_route: (job: any, technician: any) => 
+    `🚗 ${technician?.full_name || "Your technician"} is on the way to ${job.address || "your location"}! Please ensure someone is available to greet them.`,
+  
+  job_completed: (job: any, _technician: any) => 
+    `✅ Service complete! Thank you for choosing us, ${job.customer?.name || "valued customer"}. We appreciate your business! Questions? Just reply to this message.`,
+};
+
+// Helper to format phone number for Twilio
+function formatPhoneNumber(phone: string): string {
+  const cleaned = phone.replace(/\D/g, "");
+  if (cleaned.length === 10) {
+    return `+1${cleaned}`;
+  } else if (cleaned.length === 11 && cleaned.startsWith("1")) {
+    return `+${cleaned}`;
+  }
+  return phone.startsWith("+") ? phone : `+${cleaned}`;
+}
+
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -85,10 +111,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch job details with customer
     const { data: job, error: jobError } = await supabase
       .from("jobs")
-      .select(`
-        *,
-        customer:customers(*)
-      `)
+      .select(`*, customer:customers(*)`)
       .eq("id", job_id)
       .maybeSingle();
 
@@ -112,25 +135,12 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("customer_id", job.customer.id)
       .maybeSingle();
 
-    // Default to sending if no preferences set
-    const prefKey = `email_${notification_type}` as keyof typeof prefs;
-    const shouldSendEmail = prefs ? prefs[prefKey] !== false : true;
-
-    if (!shouldSendEmail) {
-      console.log(`Email notifications disabled for ${notification_type}`);
-      return new Response(JSON.stringify({ message: "Notification disabled by preference" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    if (!job.customer.email) {
-      console.log("Customer has no email address");
-      return new Response(JSON.stringify({ message: "No email address" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    const emailPrefKey = `email_${notification_type}`;
+    const smsPrefKey = `sms_${notification_type}`;
+    
+    // Default to email enabled, SMS disabled if no preferences set
+    const shouldSendEmail = prefs ? prefs[emailPrefKey] !== false : true;
+    const shouldSendSms = prefs ? prefs[smsPrefKey] === true : false;
 
     // Fetch technician details if assigned
     let technician = null;
@@ -143,47 +153,121 @@ const handler = async (req: Request): Promise<Response> => {
       technician = techData;
     }
 
-    // Get email template
-    const template = notificationTemplates[notification_type];
-    const emailHtml = template.getBody(job, technician);
+    const results: { email?: any; sms?: any } = {};
 
-    // Send email via Resend API
-    console.log(`Sending ${notification_type} email to ${job.customer.email}`);
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "Service Updates <onboarding@resend.dev>",
-        to: [job.customer.email],
-        subject: template.subject,
-        html: emailHtml,
-      }),
-    });
+    // Send Email if enabled and customer has email
+    if (shouldSendEmail && job.customer.email) {
+      console.log(`Sending ${notification_type} email to ${job.customer.email}`);
+      
+      const template = emailTemplates[notification_type];
+      const emailHtml = template.getBody(job, technician);
 
-    const emailResult = await emailResponse.json();
-    console.log("Email sent:", emailResult);
+      const emailResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Service Updates <onboarding@resend.dev>",
+          to: [job.customer.email],
+          subject: template.subject,
+          html: emailHtml,
+        }),
+      });
 
-    if (!emailResponse.ok) {
-      throw new Error(emailResult.message || "Failed to send email");
+      const emailResult = await emailResponse.json();
+      console.log("Email result:", emailResult);
+
+      if (emailResponse.ok) {
+        results.email = emailResult;
+        
+        // Log the email notification
+        await supabase.from("notification_log").insert({
+          job_id: job_id,
+          customer_id: job.customer.id,
+          notification_type: notification_type,
+          channel: "email",
+          recipient: job.customer.email,
+          status: "sent",
+          sent_at: new Date().toISOString(),
+        });
+      } else {
+        console.error("Email send failed:", emailResult);
+        await supabase.from("notification_log").insert({
+          job_id: job_id,
+          customer_id: job.customer.id,
+          notification_type: notification_type,
+          channel: "email",
+          recipient: job.customer.email,
+          status: "failed",
+          error_message: emailResult.message || "Failed to send email",
+        });
+      }
+    } else {
+      console.log(`Skipping email: enabled=${shouldSendEmail}, hasEmail=${!!job.customer.email}`);
     }
 
-    console.log("Email sent:", emailResponse);
+    // Send SMS if enabled and customer has phone
+    if (shouldSendSms && job.customer.phone) {
+      console.log(`Sending ${notification_type} SMS to ${job.customer.phone}`);
 
-    // Log the notification
-    await supabase.from("notification_log").insert({
-      job_id: job_id,
-      customer_id: job.customer.id,
-      notification_type: notification_type,
-      channel: "email",
-      recipient: job.customer.email,
-      status: "sent",
-      sent_at: new Date().toISOString(),
-    });
+      if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+        console.error("Twilio credentials not configured");
+      } else {
+        const smsMessage = smsTemplates[notification_type](job, technician);
+        const formattedPhone = formatPhoneNumber(job.customer.phone);
 
-    return new Response(JSON.stringify({ success: true, emailResult }), {
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+        const authHeader = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+
+        const smsResponse = await fetch(twilioUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${authHeader}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            To: formattedPhone,
+            From: TWILIO_PHONE_NUMBER,
+            Body: smsMessage,
+          }),
+        });
+
+        const smsResult = await smsResponse.json();
+        console.log("SMS result:", smsResult);
+
+        if (smsResponse.ok) {
+          results.sms = smsResult;
+
+          // Log the SMS notification
+          await supabase.from("notification_log").insert({
+            job_id: job_id,
+            customer_id: job.customer.id,
+            notification_type: notification_type,
+            channel: "sms",
+            recipient: formattedPhone,
+            status: "sent",
+            sent_at: new Date().toISOString(),
+          });
+        } else {
+          console.error("SMS send failed:", smsResult);
+          await supabase.from("notification_log").insert({
+            job_id: job_id,
+            customer_id: job.customer.id,
+            notification_type: notification_type,
+            channel: "sms",
+            recipient: formattedPhone,
+            status: "failed",
+            error_message: smsResult.message || "Failed to send SMS",
+          });
+        }
+      }
+    } else {
+      console.log(`Skipping SMS: enabled=${shouldSendSms}, hasPhone=${!!job.customer.phone}`);
+    }
+
+    return new Response(JSON.stringify({ success: true, results }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
@@ -191,10 +275,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error("Error in send-notification function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
