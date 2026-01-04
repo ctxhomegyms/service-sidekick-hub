@@ -7,7 +7,9 @@ const corsHeaders = {
 };
 
 interface InvitationRequest {
+  fullName: string;
   email: string;
+  phone: string;
   role: "manager" | "technician";
   invitedBy: string;
   appUrl: string;
@@ -20,26 +22,48 @@ serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing required environment variables");
+      throw new Error("Server configuration error");
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { email, role, invitedBy, appUrl }: InvitationRequest = await req.json();
+    const body = await req.json();
+    console.log("Received invitation request:", JSON.stringify(body));
+
+    const { fullName, email, phone, role, invitedBy, appUrl }: InvitationRequest = body;
+
+    if (!email || !role || !invitedBy) {
+      console.error("Missing required fields:", { email: !!email, role: !!role, invitedBy: !!invitedBy });
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     console.log(`Creating invitation for ${email} as ${role}`);
 
     // Check if invitation already exists
-    const { data: existingInvite } = await supabase
+    const { data: existingInvite, error: checkError } = await supabase
       .from("invitations")
       .select("*")
       .eq("email", email)
       .is("accepted_at", null)
       .gt("expires_at", new Date().toISOString())
-      .single();
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Error checking existing invitation:", checkError);
+      throw checkError;
+    }
 
     if (existingInvite) {
+      console.log("Active invitation already exists for:", email);
       return new Response(
         JSON.stringify({ error: "An active invitation already exists for this email" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -47,26 +71,34 @@ serve(async (req: Request) => {
     }
 
     // Check if user already exists
-    const { data: existingProfile } = await supabase
+    const { data: existingProfile, error: profileError } = await supabase
       .from("profiles")
       .select("email")
       .eq("email", email)
-      .single();
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("Error checking existing profile:", profileError);
+      throw profileError;
+    }
 
     if (existingProfile) {
+      console.log("User already exists:", email);
       return new Response(
         JSON.stringify({ error: "A user with this email already exists" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Create invitation
+    // Create invitation with full_name and phone
     const { data: invitation, error: inviteError } = await supabase
       .from("invitations")
       .insert({
         email,
         role,
         invited_by: invitedBy,
+        full_name: fullName || null,
+        phone: phone || null,
       })
       .select()
       .single();
@@ -91,6 +123,7 @@ serve(async (req: Request) => {
 
     // Send email if Resend is configured
     if (resendApiKey) {
+      console.log("Sending invitation email via Resend...");
       const emailResponse = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -104,6 +137,7 @@ serve(async (req: Request) => {
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
               <h1 style="color: #1a1a1a;">You're Invited!</h1>
+              <p>Hi ${fullName || 'there'},</p>
               <p>${inviterName} has invited you to join FieldFlow as a <strong>${roleLabel}</strong>.</p>
               <p>Click the button below to create your account:</p>
               <a href="${inviteLink}" style="display: inline-block; background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
@@ -120,7 +154,8 @@ serve(async (req: Request) => {
       });
 
       if (!emailResponse.ok) {
-        console.error("Failed to send email:", await emailResponse.text());
+        const errorText = await emailResponse.text();
+        console.error("Failed to send email:", errorText);
       } else {
         console.log("Invitation email sent successfully");
       }
