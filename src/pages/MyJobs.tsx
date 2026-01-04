@@ -576,10 +576,10 @@ function MobileJobDetail({
   const address = getFullAddress(job);
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+    <div className="fixed inset-0 z-50 bg-background flex flex-col no-overscroll safe-area-pt">
       {/* Sticky Header */}
       <div className="sticky top-0 z-10 bg-background border-b px-4 py-3 flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack}>
+        <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 h-10 w-10">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
@@ -592,7 +592,7 @@ function MobileJobDetail({
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className="flex-1 overflow-y-auto pb-28">
         <div className="p-4 space-y-4">
           {/* Quick Actions */}
           <div className="flex gap-2">
@@ -705,7 +705,7 @@ function MobileJobDetail({
               <CollapsibleContent>
                 <CardContent className="pt-0 pb-4">
                   {job.status !== 'completed' && (
-                    <div className="flex gap-2 mb-4">
+                    <div className="grid grid-cols-3 gap-2 mb-4">
                       <PhotoUpload jobId={job.id} photoType="before" onUploadComplete={onPhotoUploadComplete} />
                       <PhotoUpload jobId={job.id} photoType="during" onUploadComplete={onPhotoUploadComplete} />
                       <PhotoUpload jobId={job.id} photoType="after" onUploadComplete={onPhotoUploadComplete} />
@@ -811,21 +811,21 @@ function MobileJobDetail({
 
       {/* Fixed Bottom Action Bar */}
       {job.status !== 'completed' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 safe-area-pb">
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 safe-area-inset-bottom">
           {job.status === 'scheduled' && (
-            <Button className="w-full h-12 text-base gap-2" onClick={() => onEnRoute(job.id)}>
+            <Button className="w-full h-12 text-base gap-2 active:scale-[0.98]" onClick={() => onEnRoute(job.id)}>
               <MapPin className="w-5 h-5" />
               I'm On My Way
             </Button>
           )}
           {job.status === 'en_route' && (
-            <Button className="w-full h-12 text-base gap-2" onClick={() => onStartJob(job.id)}>
+            <Button className="w-full h-12 text-base gap-2 active:scale-[0.98]" onClick={() => onStartJob(job.id)}>
               <PlayCircle className="w-5 h-5" />
               Start Work
             </Button>
           )}
           {job.status === 'in_progress' && (
-            <Button className="w-full h-12 text-base gap-2" onClick={() => onCompleteJob(job.id)}>
+            <Button className="w-full h-12 text-base gap-2 active:scale-[0.98]" onClick={() => onCompleteJob(job.id)}>
               <CheckCircle2 className="w-5 h-5" />
               Complete Job
             </Button>

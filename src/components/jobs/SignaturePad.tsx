@@ -91,7 +91,7 @@ export function SignaturePad({ jobId, open, onOpenChange, onSignatureComplete }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md mx-auto">
         <DialogHeader>
           <DialogTitle>Customer Signature</DialogTitle>
         </DialogHeader>
@@ -104,18 +104,18 @@ export function SignaturePad({ jobId, open, onOpenChange, onSignatureComplete }:
               value={signerName}
               onChange={(e) => setSignerName(e.target.value)}
               placeholder="Enter customer name"
-              className="mt-1"
+              className="mt-1 h-12 text-base"
             />
           </div>
 
           <div>
             <Label>Signature</Label>
-            <div className="mt-1 border rounded-lg bg-white overflow-hidden">
+            <div className="mt-1 border rounded-lg bg-white overflow-hidden touch-draw">
               <SignatureCanvas
                 ref={sigCanvas}
                 canvasProps={{
-                  className: 'w-full h-40',
-                  style: { width: '100%', height: '160px' },
+                  className: 'w-full',
+                  style: { width: '100%', height: '200px', touchAction: 'none' },
                 }}
                 backgroundColor="white"
               />
@@ -132,11 +132,11 @@ export function SignaturePad({ jobId, open, onOpenChange, onSignatureComplete }:
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto h-11">
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+          <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto h-11 gap-2">
             {isSaving ? (
               <>
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

@@ -81,7 +81,7 @@ export function PhotoUpload({ jobId, photoType, onUploadComplete }: PhotoUploadP
   };
 
   return (
-    <div>
+    <div className="flex-1 min-w-0">
       <input
         ref={fileInputRef}
         type="file"
@@ -95,17 +95,17 @@ export function PhotoUpload({ jobId, photoType, onUploadComplete }: PhotoUploadP
         size="sm"
         onClick={() => fileInputRef.current?.click()}
         disabled={isUploading}
-        className="gap-2"
+        className="w-full gap-1 px-2 h-10 active:scale-[0.98]"
       >
         {isUploading ? (
           <>
             <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            Uploading...
+            <span className="sr-only">Uploading...</span>
           </>
         ) : (
           <>
-            <Camera className="w-4 h-4" />
-            {typeLabels[photoType]}
+            <Camera className="w-4 h-4 shrink-0" />
+            <span className="truncate text-xs">{typeLabels[photoType]}</span>
           </>
         )}
       </Button>
