@@ -10,6 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Shield, UserCog, Wrench } from 'lucide-react';
+import { InviteUserDialog } from '@/components/users/InviteUserDialog';
+import { PendingInvitations } from '@/components/users/PendingInvitations';
 
 interface UserWithRole {
   id: string;
@@ -30,6 +32,7 @@ export default function Users() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -102,14 +105,24 @@ export default function Users() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">Manage user accounts and their roles</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+            <p className="text-muted-foreground">Invite and manage user accounts</p>
+          </div>
+          <InviteUserDialog onInviteSent={() => setRefreshTrigger(r => r + 1)} />
         </div>
+
+        {/* Pending Invitations */}
+        <Card>
+          <CardContent className="pt-6">
+            <PendingInvitations refreshTrigger={refreshTrigger} />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>All Users</CardTitle>
+            <CardTitle>Team Members</CardTitle>
             <CardDescription>
               View and manage user roles. Super Admins can change any user's role.
             </CardDescription>
@@ -118,75 +131,81 @@ export default function Users() {
             {loading ? (
               <div className="text-center py-8 text-muted-foreground">Loading users...</div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Current Role</TableHead>
-                    <TableHead>Change Role</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => {
-                    const config = roleConfig[user.role];
-                    const RoleIcon = config.icon;
-                    
-                    return (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9">
-                              <AvatarImage src={user.avatar_url || undefined} />
-                              <AvatarFallback>{getInitials(user.full_name)}</AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">{user.full_name || 'Unnamed User'}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={config.color}>
-                            <RoleIcon className="w-3 h-3 mr-1" />
-                            {config.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={user.role}
-                            onValueChange={(value: 'admin' | 'manager' | 'technician') => 
-                              handleRoleChange(user.id, value)
-                            }
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">
-                                <div className="flex items-center gap-2">
-                                  <Shield className="w-4 h-4" />
-                                  Super Admin
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="manager">
-                                <div className="flex items-center gap-2">
-                                  <UserCog className="w-4 h-4" />
-                                  Manager
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="technician">
-                                <div className="flex items-center gap-2">
-                                  <Wrench className="w-4 h-4" />
-                                  Technician
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead className="hidden sm:table-cell">Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Change Role</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => {
+                      const config = roleConfig[user.role];
+                      const RoleIcon = config.icon;
+                      
+                      return (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-9 w-9">
+                                <AvatarImage src={user.avatar_url || undefined} />
+                                <AvatarFallback>{getInitials(user.full_name)}</AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{user.full_name || 'Unnamed User'}</p>
+                                <p className="text-xs text-muted-foreground sm:hidden truncate">{user.email}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-muted-foreground">{user.email}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={config.color}>
+                              <RoleIcon className="w-3 h-3 mr-1" />
+                              <span className="hidden sm:inline">{config.label}</span>
+                              <span className="sm:hidden capitalize">{user.role}</span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={user.role}
+                              onValueChange={(value: 'admin' | 'manager' | 'technician') => 
+                                handleRoleChange(user.id, value)
+                              }
+                            >
+                              <SelectTrigger className="w-32 sm:w-40">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">
+                                  <div className="flex items-center gap-2">
+                                    <Shield className="w-4 h-4" />
+                                    Super Admin
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="manager">
+                                  <div className="flex items-center gap-2">
+                                    <UserCog className="w-4 h-4" />
+                                    Manager
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="technician">
+                                  <div className="flex items-center gap-2">
+                                    <Wrench className="w-4 h-4" />
+                                    Technician
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -204,7 +223,7 @@ export default function Users() {
                   <h3 className="font-semibold">Super Admin</h3>
                 </div>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Manage all users and roles</li>
+                  <li>• Invite and manage users</li>
                   <li>• Full access to all features</li>
                   <li>• Create, edit, delete jobs</li>
                   <li>• Schedule and dispatch</li>
