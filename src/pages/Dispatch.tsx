@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
+import { RouteOptimizer } from '@/components/dispatch/RouteOptimizer';
 import { notifyJobScheduled } from '@/lib/notifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,8 @@ interface Job {
   city: string | null;
   assigned_technician_id: string | null;
   estimated_duration_minutes: number | null;
+  latitude: number | null;
+  longitude: number | null;
   customer: { name: string } | null;
 }
 
@@ -67,6 +70,7 @@ export default function Dispatch() {
             id, title, description, status, priority, 
             scheduled_date, scheduled_time, address, city,
             assigned_technician_id, estimated_duration_minutes,
+            latitude, longitude,
             customer:customers(name)
           `)
           .not('status', 'in', '("completed","cancelled")'),
@@ -161,6 +165,30 @@ export default function Dispatch() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  const handleRouteOptimize = async (technicianId: string, optimizedJobIds: string[]) => {
+    // Update job times based on optimized order
+    // Jobs will be scheduled 30 minutes apart starting at 8:00 AM
+    try {
+      const updates = optimizedJobIds.map((jobId, index) => {
+        const hours = Math.floor((index * 60) / 60) + 8; // 60 min intervals starting at 8 AM
+        const minutes = (index * 60) % 60;
+        const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+        
+        return supabase
+          .from('jobs')
+          .update({ scheduled_time: timeStr })
+          .eq('id', jobId);
+      });
+
+      await Promise.all(updates);
+      toast.success('Jobs reordered for optimal route');
+      fetchData();
+    } catch (error: any) {
+      console.error('Failed to update job order:', error);
+      toast.error('Failed to update job schedule');
+    }
+  };
+
   return (
     <AppLayout>
       <div className="h-[calc(100vh-2rem)] flex flex-col">
@@ -172,6 +200,11 @@ export default function Dispatch() {
           </div>
           
           <div className="flex items-center gap-2">
+            <RouteOptimizer
+              jobs={jobs}
+              technicians={technicians}
+              onOptimize={handleRouteOptimize}
+            />
             <Button variant="outline" size="icon" onClick={() => setWeekStart(prev => addDays(prev, -7))}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
