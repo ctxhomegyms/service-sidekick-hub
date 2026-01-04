@@ -231,6 +231,7 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
     setSendingMessage(true);
     try {
       // For SMS channel, send via Twilio
+      let smsMeta: { sid?: string; status?: string; to?: string; error_message?: string | null } | null = null;
       if (conversation?.channel === "sms" && conversation?.customer?.phone) {
         const { data, error: fnError } = await supabase.functions.invoke("send-sms", {
           body: {
@@ -249,7 +250,22 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
           throw new Error(data.error);
         }
 
-        toast.success("SMS sent via Twilio");
+        smsMeta = {
+          sid: data?.sid,
+          status: data?.status,
+          to: data?.to,
+          error_message: data?.error_message ?? null,
+        };
+
+        if (data?.status === "failed" || data?.status === "undelivered") {
+          throw new Error(data?.error_message || "SMS delivery failed");
+        }
+
+        if (data?.status === "queued" || data?.status === "sending") {
+          toast.success("SMS queued");
+        } else {
+          toast.success("SMS sent");
+        }
       }
 
       // For Email channel, send via Resend
@@ -280,7 +296,11 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
         direction: "outbound" as MessageDirection,
         content: newMessage.trim(),
         sender_name: user.email,
-        sender_contact: conversation?.channel === "sms" ? conversation?.customer?.phone : conversation?.customer?.email,
+        sender_contact:
+          conversation?.channel === "sms"
+            ? conversation?.customer?.phone
+            : conversation?.customer?.email,
+        metadata: conversation?.channel === "sms" ? smsMeta : null,
       });
 
       if (error) throw error;
