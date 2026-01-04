@@ -207,11 +207,35 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
 
     setSendingMessage(true);
     try {
+      // For SMS channel, send via Twilio
+      if (conversation?.channel === "sms" && conversation?.customer?.phone) {
+        const { data, error: fnError } = await supabase.functions.invoke("send-sms", {
+          body: {
+            to: conversation.customer.phone,
+            message: newMessage.trim(),
+            conversationId: conversationId,
+          },
+        });
+
+        if (fnError) {
+          console.error("Twilio SMS error:", fnError);
+          throw new Error(fnError.message || "Failed to send SMS via Twilio");
+        }
+
+        if (data?.error) {
+          throw new Error(data.error);
+        }
+
+        toast.success("SMS sent via Twilio");
+      }
+
+      // Save the message to the database
       const { error } = await supabase.from("conversation_messages").insert({
         conversation_id: conversationId,
         direction: "outbound" as MessageDirection,
         content: newMessage.trim(),
         sender_name: user.email,
+        sender_contact: conversation?.channel === "sms" ? conversation?.customer?.phone : null,
       });
 
       if (error) throw error;
@@ -225,9 +249,12 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
       setNewMessage("");
       fetchData();
       onUpdate();
-      toast.success("Message sent");
+      
+      if (conversation?.channel !== "sms") {
+        toast.success("Message sent");
+      }
     } catch (error: any) {
-      toast.error("Failed to send message");
+      toast.error(error.message || "Failed to send message");
       console.error(error);
     } finally {
       setSendingMessage(false);
