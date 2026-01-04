@@ -58,7 +58,7 @@ export default function Jobs() {
           address,
           city,
           customer:customers(name),
-          technician:profiles(full_name, avatar_url)
+          technician:profiles!jobs_assigned_technician_id_fkey(full_name, avatar_url)
         `)
         .order('created_at', { ascending: false });
 
