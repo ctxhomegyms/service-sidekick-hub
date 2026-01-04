@@ -194,226 +194,251 @@ export const TechnicianMap: React.FC = () => {
     };
   }, [mapboxToken]);
 
+  // Track added route source IDs for cleanup
+  const routeSourcesRef = useRef<string[]>([]);
+
   // Update markers and routes when data changes
   useEffect(() => {
     if (!map.current) return;
 
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
+    const currentMap = map.current;
 
-    // Clear existing route layers
-    routes.forEach((_, idx) => {
-      const sourceId = `route-${idx}`;
-      const outlineId = `route-outline-${idx}`;
-      if (map.current?.getLayer(sourceId)) {
-        map.current.removeLayer(sourceId);
-      }
-      if (map.current?.getLayer(outlineId)) {
-        map.current.removeLayer(outlineId);
-      }
-      if (map.current?.getSource(sourceId)) {
-        map.current.removeSource(sourceId);
-      }
-    });
+    // Wait for map style to load before manipulating layers
+    const updateMapData = () => {
+      try {
+        // Clear existing markers
+        markersRef.current.forEach(marker => marker.remove());
+        markersRef.current = [];
 
-    // Add route lines with dashed animation for en_route jobs
-    routes.forEach((route, idx) => {
-      if (!map.current) return;
-      
-      const sourceId = `route-${idx}`;
-      const outlineId = `route-outline-${idx}`;
-      
-      // Find if this route's job is en_route
-      const job = jobs.find(j => j.id === route.jobId);
-      const isEnRoute = job?.status === 'en_route';
-      
-      // Add route source and layers
-      if (!map.current.getSource(sourceId)) {
-        map.current.addSource(sourceId, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: route.geometry,
-          },
+        // Clear existing route layers safely
+        routeSourcesRef.current.forEach((sourceId) => {
+          const outlineId = `${sourceId}-outline`;
+          try {
+            if (currentMap.getLayer(sourceId)) {
+              currentMap.removeLayer(sourceId);
+            }
+            if (currentMap.getLayer(outlineId)) {
+              currentMap.removeLayer(outlineId);
+            }
+            if (currentMap.getSource(sourceId)) {
+              currentMap.removeSource(sourceId);
+            }
+          } catch (e) {
+            console.warn('Error removing layer/source:', e);
+          }
+        });
+        routeSourcesRef.current = [];
+
+        // Add route lines with dashed animation for en_route jobs
+        routes.forEach((route, idx) => {
+          const sourceId = `route-${idx}`;
+          const outlineId = `${sourceId}-outline`;
+          
+          // Find if this route's job is en_route
+          const job = jobs.find(j => j.id === route.jobId);
+          const isEnRoute = job?.status === 'en_route';
+          
+          try {
+            // Add route source and layers
+            currentMap.addSource(sourceId, {
+              type: 'geojson',
+              data: {
+                type: 'Feature',
+                properties: {},
+                geometry: route.geometry,
+              },
+            });
+
+            // Outline layer for better visibility
+            currentMap.addLayer({
+              id: outlineId,
+              type: 'line',
+              source: sourceId,
+              layout: {
+                'line-join': 'round',
+                'line-cap': 'round',
+              },
+              paint: {
+                'line-color': '#ffffff',
+                'line-width': 7,
+                'line-opacity': 0.8,
+              },
+            });
+
+            // Main route layer
+            currentMap.addLayer({
+              id: sourceId,
+              type: 'line',
+              source: sourceId,
+              layout: {
+                'line-join': 'round',
+                'line-cap': 'round',
+              },
+              paint: {
+                'line-color': isEnRoute ? '#10B981' : '#8B5CF6',
+                'line-width': 4,
+                'line-opacity': 0.9,
+                'line-dasharray': isEnRoute ? [2, 1] : [1],
+              },
+            });
+
+            routeSourcesRef.current.push(sourceId);
+          } catch (e) {
+            console.warn('Error adding route layer:', e);
+          }
         });
 
-        // Outline layer for better visibility
-        map.current.addLayer({
-          id: outlineId,
-          type: 'line',
-          source: sourceId,
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round',
-          },
-          paint: {
-            'line-color': '#ffffff',
-            'line-width': 7,
-            'line-opacity': 0.8,
-          },
+        // Add technician markers
+        locations.forEach(loc => {
+          // Find route for this technician to show ETA
+          const techRoute = routes.find(r => r.technicianId === loc.technician_id);
+          const etaText = techRoute 
+            ? `<br/><span style="font-size: 11px; color: #8B5CF6;">📍 ETA to job: ${techRoute.durationMinutes} min (${techRoute.distanceMiles} mi)</span>`
+            : '';
+
+          const el = document.createElement('div');
+          el.className = 'technician-marker';
+          el.innerHTML = `
+            <div style="
+              width: 36px;
+              height: 36px;
+              background: linear-gradient(135deg, hsl(173, 58%, 39%), hsl(173, 58%, 49%));
+              border-radius: 50%;
+              border: 3px solid white;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 14px;
+            ">
+              ${loc.profile?.full_name?.charAt(0) || 'T'}
+            </div>
+          `;
+
+          const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
+            <div style="padding: 8px;">
+              <strong>${loc.profile?.full_name || 'Technician'}</strong>
+              <br/>
+              <span style="color: #10B981; font-size: 12px;">● On Shift</span>
+              ${etaText}
+              <br/>
+              <span style="font-size: 11px; color: #666;">
+                Updated: ${new Date(loc.updated_at).toLocaleTimeString()}
+              </span>
+            </div>
+          `);
+
+          const marker = new mapboxgl.Marker(el)
+            .setLngLat([loc.longitude, loc.latitude])
+            .setPopup(popup)
+            .addTo(currentMap);
+
+          markersRef.current.push(marker);
         });
 
-        // Main route layer
-        map.current.addLayer({
-          id: sourceId,
-          type: 'line',
-          source: sourceId,
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round',
-          },
-          paint: {
-            'line-color': isEnRoute ? '#10B981' : '#8B5CF6',
-            'line-width': 4,
-            'line-opacity': 0.9,
-            'line-dasharray': isEnRoute ? [2, 1] : [1],
-          },
+        // Add job markers
+        jobs.forEach(job => {
+          if (!job.latitude || !job.longitude) return;
+
+          // Find route for this job to show ETA
+          const jobRoute = routes.find(r => r.jobId === job.id);
+          const etaText = jobRoute 
+            ? `<br/><span style="font-size: 11px; color: #8B5CF6; margin-top: 4px; display: block;">🚗 Tech arriving in ~${jobRoute.durationMinutes} min</span>`
+            : '';
+
+          // Time window display
+          const timeWindowText = job.time_window_start && job.time_window_end
+            ? `<br/><span style="font-size: 11px; color: #666;">⏰ Window: ${job.time_window_start.slice(0, 5)} - ${job.time_window_end.slice(0, 5)}</span>`
+            : '';
+
+          const scheduledTimeText = job.scheduled_time
+            ? `<br/><span style="font-size: 11px; color: #666;">📅 Scheduled: ${job.scheduled_time.slice(0, 5)}</span>`
+            : '';
+
+          const el = document.createElement('div');
+          el.className = 'job-marker';
+          const color = job.status === 'pending' 
+            ? PRIORITY_COLORS[job.priority] 
+            : STATUS_COLORS[job.status];
+          
+          el.innerHTML = `
+            <div style="
+              width: 28px;
+              height: 28px;
+              background: ${color};
+              border-radius: 4px;
+              border: 2px solid white;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                <path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/>
+              </svg>
+            </div>
+          `;
+
+          const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
+            <div style="padding: 8px; min-width: 150px;">
+              <strong>${job.title}</strong>
+              <br/>
+              <span style="font-size: 12px; color: #666;">
+                ${job.customer?.name || 'No customer'}
+              </span>
+              <br/>
+              <span style="
+                display: inline-block;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 11px;
+                background: ${color}20;
+                color: ${color};
+                margin-top: 4px;
+              ">
+                ${job.status.replace('_', ' ')}
+              </span>
+              ${scheduledTimeText}
+              ${timeWindowText}
+              ${etaText}
+              ${job.address ? `<br/><span style="font-size: 11px; color: #888;">${job.address}</span>` : ''}
+            </div>
+          `);
+
+          const marker = new mapboxgl.Marker(el)
+            .setLngLat([job.longitude, job.latitude])
+            .setPopup(popup)
+            .addTo(currentMap);
+
+          markersRef.current.push(marker);
         });
-      }
-    });
 
-    // Add technician markers
-    locations.forEach(loc => {
-      // Find route for this technician to show ETA
-      const techRoute = routes.find(r => r.technicianId === loc.technician_id);
-      const etaText = techRoute 
-        ? `<br/><span style="font-size: 11px; color: #8B5CF6;">📍 ETA to job: ${techRoute.durationMinutes} min (${techRoute.distanceMiles} mi)</span>`
-        : '';
-
-      const el = document.createElement('div');
-      el.className = 'technician-marker';
-      el.innerHTML = `
-        <div style="
-          width: 36px;
-          height: 36px;
-          background: linear-gradient(135deg, hsl(173, 58%, 39%), hsl(173, 58%, 49%));
-          border-radius: 50%;
-          border: 3px solid white;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-weight: bold;
-          font-size: 14px;
-        ">
-          ${loc.profile?.full_name?.charAt(0) || 'T'}
-        </div>
-      `;
-
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-        <div style="padding: 8px;">
-          <strong>${loc.profile?.full_name || 'Technician'}</strong>
-          <br/>
-          <span style="color: #10B981; font-size: 12px;">● On Shift</span>
-          ${etaText}
-          <br/>
-          <span style="font-size: 11px; color: #666;">
-            Updated: ${new Date(loc.updated_at).toLocaleTimeString()}
-          </span>
-        </div>
-      `);
-
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([loc.longitude, loc.latitude])
-        .setPopup(popup)
-        .addTo(map.current!);
-
-      markersRef.current.push(marker);
-    });
-
-    // Add job markers
-    jobs.forEach(job => {
-      if (!job.latitude || !job.longitude) return;
-
-      // Find route for this job to show ETA
-      const jobRoute = routes.find(r => r.jobId === job.id);
-      const etaText = jobRoute 
-        ? `<br/><span style="font-size: 11px; color: #8B5CF6; margin-top: 4px; display: block;">🚗 Tech arriving in ~${jobRoute.durationMinutes} min</span>`
-        : '';
-
-      // Time window display
-      const timeWindowText = job.time_window_start && job.time_window_end
-        ? `<br/><span style="font-size: 11px; color: #666;">⏰ Window: ${job.time_window_start.slice(0, 5)} - ${job.time_window_end.slice(0, 5)}</span>`
-        : '';
-
-      const scheduledTimeText = job.scheduled_time
-        ? `<br/><span style="font-size: 11px; color: #666;">📅 Scheduled: ${job.scheduled_time.slice(0, 5)}</span>`
-        : '';
-
-      const el = document.createElement('div');
-      el.className = 'job-marker';
-      const color = job.status === 'pending' 
-        ? PRIORITY_COLORS[job.priority] 
-        : STATUS_COLORS[job.status];
-      
-      el.innerHTML = `
-        <div style="
-          width: 28px;
-          height: 28px;
-          background: ${color};
-          border-radius: 4px;
-          border: 2px solid white;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        ">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-            <path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/>
-          </svg>
-        </div>
-      `;
-
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-        <div style="padding: 8px; min-width: 150px;">
-          <strong>${job.title}</strong>
-          <br/>
-          <span style="font-size: 12px; color: #666;">
-            ${job.customer?.name || 'No customer'}
-          </span>
-          <br/>
-          <span style="
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 11px;
-            background: ${color}20;
-            color: ${color};
-            margin-top: 4px;
-          ">
-            ${job.status.replace('_', ' ')}
-          </span>
-          ${scheduledTimeText}
-          ${timeWindowText}
-          ${etaText}
-          ${job.address ? `<br/><span style="font-size: 11px; color: #888;">${job.address}</span>` : ''}
-        </div>
-      `);
-
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([job.longitude, job.latitude])
-        .setPopup(popup)
-        .addTo(map.current!);
-
-      markersRef.current.push(marker);
-    });
-
-    // Fit bounds to show all markers
-    if (markersRef.current.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      locations.forEach(loc => bounds.extend([loc.longitude, loc.latitude]));
-      jobs.forEach(job => {
-        if (job.latitude && job.longitude) {
-          bounds.extend([job.longitude, job.latitude]);
+        // Fit bounds to show all markers
+        if (locations.length > 0 || jobs.some(j => j.latitude && j.longitude)) {
+          const bounds = new mapboxgl.LngLatBounds();
+          locations.forEach(loc => bounds.extend([loc.longitude, loc.latitude]));
+          jobs.forEach(job => {
+            if (job.latitude && job.longitude) {
+              bounds.extend([job.longitude, job.latitude]);
+            }
+          });
+          
+          if (!bounds.isEmpty()) {
+            currentMap.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+          }
         }
-      });
-      
-      if (!bounds.isEmpty()) {
-        map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      } catch (e) {
+        console.error('Error updating map data:', e);
       }
+    };
+
+    // If map is already loaded, update immediately; otherwise wait
+    if (currentMap.isStyleLoaded()) {
+      updateMapData();
+    } else {
+      currentMap.once('load', updateMapData);
     }
   }, [locations, jobs, routes]);
 
