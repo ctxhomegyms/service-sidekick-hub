@@ -28,7 +28,8 @@ import { TagSelector } from './TagSelector';
 import { LineItemsEditor, LineItem } from './LineItemsEditor';
 import { RecurrenceSettings, RecurrencePattern } from './RecurrenceSettings';
 import { CollapsibleSection } from './CollapsibleSection';
-import { Calendar, Users, Tag, ClipboardList, Settings, FileText, Sliders } from 'lucide-react';
+import { AttachmentUploader, PendingFile } from './AttachmentUploader';
+import { Calendar, Users, Tag, ClipboardList, Settings, FileText, Sliders, Paperclip } from 'lucide-react';
 
 interface JobType {
   id: string;
@@ -71,6 +72,8 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
   const [crewIds, setCrewIds] = useState<string[]>([]);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  
+  const [pendingAttachments, setPendingAttachments] = useState<PendingFile[]>([]);
   
   const [formData, setFormData] = useState({
     jobName: '',
@@ -118,6 +121,11 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
     setTagIds([]);
     setLineItems([]);
     setCustomFieldValues({});
+    // Clean up attachment previews
+    pendingAttachments.forEach(pa => {
+      if (pa.preview) URL.revokeObjectURL(pa.preview);
+    });
+    setPendingAttachments([]);
     setFormData({
       jobName: '',
       jobTypeId: '',
@@ -265,6 +273,33 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
       
       if (customFieldInserts.length > 0) {
         await supabase.from('job_custom_field_values').insert(customFieldInserts);
+      }
+
+      // Upload attachments
+      if (pendingAttachments.length > 0 && user) {
+        for (const pa of pendingAttachments) {
+          const fileExt = pa.file.name.split('.').pop();
+          const filePath = `${user.id}/${jobId}/${crypto.randomUUID()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('job-attachments')
+            .upload(filePath, pa.file);
+          
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('job-attachments')
+              .getPublicUrl(filePath);
+            
+            await supabase.from('job_attachments').insert({
+              job_id: jobId,
+              uploaded_by: user.id,
+              file_url: urlData.publicUrl,
+              file_name: pa.file.name,
+              file_type: pa.file.type,
+              file_size: pa.file.size,
+            });
+          }
+        }
       }
 
       if (isScheduled && customerId) {
@@ -570,6 +605,18 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
                     </div>
                   </div>
                 </div>
+              </CollapsibleSection>
+
+              {/* Attachments Section */}
+              <CollapsibleSection 
+                title="Attachments" 
+                icon={<Paperclip className="w-4 h-4" />}
+                defaultOpen={false}
+              >
+                <AttachmentUploader 
+                  files={pendingAttachments} 
+                  onChange={setPendingAttachments} 
+                />
               </CollapsibleSection>
 
               {/* Line Items Section */}
