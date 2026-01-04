@@ -35,6 +35,7 @@ interface JobData {
   latitude: number | null;
   longitude: number | null;
   created_at: string;
+  completed_at: string | null;
   customer: {
     id: string;
     name: string;
@@ -188,7 +189,19 @@ export default function JobDetail() {
             )}
 
             {job.checklist_items.length > 0 && (
-              <JobChecklistDisplay jobId={job.id} items={job.checklist_items} onUpdate={handleJobUpdate} />
+              <JobChecklistDisplay 
+                jobId={job.id} 
+                items={job.checklist_items} 
+                onUpdate={handleJobUpdate}
+                jobInfo={{
+                  title: job.title,
+                  job_number: job.job_number,
+                  customer_name: job.customer?.name || null,
+                  address: job.address ? `${job.address}${job.city ? `, ${job.city}` : ''}${job.state ? `, ${job.state}` : ''} ${job.zip_code || ''}`.trim() : null,
+                  scheduled_date: job.scheduled_date,
+                  completed_at: job.completed_at,
+                }}
+              />
             )}
           </TabsContent>
 

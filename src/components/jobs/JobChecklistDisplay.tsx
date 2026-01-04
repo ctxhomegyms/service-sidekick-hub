@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Square, CheckSquare, Image, FileSignature, MessageSquare, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import { Check, Square, CheckSquare, Image, FileSignature, MessageSquare, ChevronDown, ChevronUp, Calendar, Download, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { exportChecklistToPdf } from '@/lib/checklistPdfExport';
 
 interface ChecklistItem {
   id: string;
@@ -33,21 +34,50 @@ interface ChecklistItem {
   options: unknown;
 }
 
+interface JobInfo {
+  title: string;
+  job_number: string | null;
+  customer_name: string | null;
+  address: string | null;
+  scheduled_date: string | null;
+  completed_at: string | null;
+}
+
 interface JobChecklistDisplayProps {
   jobId: string;
   items: ChecklistItem[];
   onUpdate: () => void;
   readOnly?: boolean;
+  jobInfo?: JobInfo;
 }
 
-export function JobChecklistDisplay({ jobId, items, onUpdate, readOnly = false }: JobChecklistDisplayProps) {
+export function JobChecklistDisplay({ jobId, items, onUpdate, readOnly = false, jobInfo }: JobChecklistDisplayProps) {
   const [updating, setUpdating] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
 
   const sortedItems = [...items].sort((a, b) => a.sort_order - b.sort_order);
   const completedCount = items.filter(i => i.is_completed).length;
   const totalCount = items.length;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+  const handleExportPdf = async () => {
+    if (!jobInfo) {
+      toast.error('Job information not available for export');
+      return;
+    }
+    
+    setExporting(true);
+    try {
+      await exportChecklistToPdf(items, jobInfo);
+      toast.success('Checklist exported to PDF');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const toggleExpanded = (itemId: string) => {
     setExpandedItems(prev => {
@@ -105,9 +135,27 @@ export function JobChecklistDisplay({ jobId, items, onUpdate, readOnly = false }
     <div className="rounded-lg border bg-card p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold">Checklist</h3>
-        <span className="text-sm text-muted-foreground">
-          {completedCount} of {totalCount} completed
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            {completedCount} of {totalCount} completed
+          </span>
+          {jobInfo && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPdf}
+              disabled={exporting}
+              className="gap-2"
+            >
+              {exporting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              Export PDF
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Progress bar */}
