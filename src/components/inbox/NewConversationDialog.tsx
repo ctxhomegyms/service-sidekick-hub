@@ -40,7 +40,7 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [customerId, setCustomerId] = useState<string>("");
-  const [channel, setChannel] = useState<ConversationChannel>("email");
+  const [channel, setChannel] = useState<ConversationChannel>("sms");
   const [subject, setSubject] = useState("");
   const [initialMessage, setInitialMessage] = useState("");
 
@@ -179,7 +179,7 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
 
   const resetForm = () => {
     setCustomerId("");
-    setChannel("email");
+    setChannel("sms");
     setSubject("");
     setInitialMessage("");
   };

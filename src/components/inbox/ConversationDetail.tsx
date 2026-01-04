@@ -237,36 +237,38 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Validate phone number for SMS channel
+  // Validate phone number for SMS sending (we prefer SMS regardless of conversation channel)
   const phoneValidation = useMemo(() => {
-    if (conversation?.channel !== "sms") return null;
-    if (!conversation?.customer?.phone) {
-      return { isValid: false, normalized: null, error: "Customer has no phone number" };
-    }
+    if (!conversation?.customer?.phone) return null;
     return normalizePhoneNumber(conversation.customer.phone);
-  }, [conversation?.channel, conversation?.customer?.phone]);
+  }, [conversation?.customer?.phone]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || !conversation) return;
 
-    // Validate phone for SMS before sending
-    if (conversation?.channel === "sms") {
-      if (!phoneValidation?.isValid) {
-        toast.error(phoneValidation?.error || "Invalid phone number");
-        return;
-      }
+    const smsCapable = !!phoneValidation?.isValid && !!phoneValidation?.normalized;
+    const emailCapable = !!conversation.customer?.email;
+
+    if (!smsCapable && !emailCapable) {
+      toast.error(phoneValidation?.error || "No valid phone or email for this customer");
+      return;
     }
 
     setSendingMessage(true);
     try {
-      // For SMS channel, send via Twilio
+      let usedSms = false;
+      let usedEmail = false;
       let smsMeta:
         | { sid?: string; status?: string; to?: string; error_code?: number | null; error_message?: string | null }
         | null = null;
-      if (conversation?.channel === "sms" && phoneValidation?.normalized) {
+
+      // Prefer SMS first
+      if (smsCapable && phoneValidation?.normalized) {
+        usedSms = true;
+
         const { data, error: fnError } = await supabase.functions.invoke("send-sms", {
           body: {
-            to: phoneValidation.normalized, // Send normalized E.164 number
+            to: phoneValidation.normalized,
             message: newMessage.trim(),
             conversationId: conversationId,
           },
@@ -276,10 +278,7 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
           console.error("Twilio SMS error:", fnError);
           throw new Error(fnError.message || "Failed to send SMS");
         }
-
-        if (data?.error) {
-          throw new Error(data.error);
-        }
+        if (data?.error) throw new Error(data.error);
 
         smsMeta = {
           sid: data?.sid,
@@ -289,20 +288,42 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
           error_message: data?.error_message ?? null,
         };
 
-        if (data?.status === "failed" || data?.status === "undelivered") {
-          const code = data?.error_code ? ` (code ${data.error_code})` : "";
-          throw new Error((data?.error_message || "SMS delivery failed") + code);
-        }
+        const smsFailed = data?.status === "failed" || data?.status === "undelivered";
 
-        if (data?.status === "queued" || data?.status === "sending") {
+        // If SMS fails, fall back to email when available
+        if (smsFailed) {
+          const code = data?.error_code ? ` (code ${data.error_code})` : "";
+
+          if (emailCapable && conversation.customer?.email) {
+            const { data: emailData, error: emailErr } = await supabase.functions.invoke("send-email", {
+              body: {
+                to: conversation.customer.email,
+                subject: conversation.subject || "Message from Field Service",
+                content: newMessage.trim(),
+              },
+            });
+
+            if (emailErr) {
+              console.error("Resend email error:", emailErr);
+              toast.error((data?.error_message || "SMS delivery failed") + code);
+              throw new Error(emailErr.message || "Failed to send email");
+            }
+            if (emailData?.error) throw new Error(emailData.error);
+
+            usedEmail = true;
+            toast.warning((data?.error_message || "SMS undelivered") + code + ". Sent email instead.");
+          } else {
+            toast.error((data?.error_message || "SMS delivery failed") + code);
+          }
+        } else if (data?.status === "queued" || data?.status === "sending") {
           toast.success("SMS queued");
         } else {
           toast.success("SMS sent");
         }
-      }
+      } else if (emailCapable && conversation.customer?.email) {
+        // No valid SMS; send email
+        usedEmail = true;
 
-      // For Email channel, send via Resend
-      if (conversation?.channel === "email" && conversation?.customer?.email) {
         const { data, error: fnError } = await supabase.functions.invoke("send-email", {
           body: {
             to: conversation.customer.email,
@@ -313,44 +334,37 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
 
         if (fnError) {
           console.error("Resend email error:", fnError);
-          throw new Error(fnError.message || "Failed to send email via Resend");
+          throw new Error(fnError.message || "Failed to send email");
         }
+        if (data?.error) throw new Error(data.error);
 
-        if (data?.error) {
-          throw new Error(data.error);
-        }
-
-        toast.success("Email sent via Resend");
+        toast.success("Email sent");
       }
 
-      // Save the message to the database
+      // Save the message to the database (store SMS meta if we attempted SMS)
+      const senderContact = usedSms
+        ? conversation.customer?.phone
+        : usedEmail
+          ? conversation.customer?.email
+          : null;
+
       const { error } = await supabase.from("conversation_messages").insert({
         conversation_id: conversationId,
         direction: "outbound" as MessageDirection,
         content: newMessage.trim(),
         sender_name: user.email,
-        sender_contact:
-          conversation?.channel === "sms"
-            ? conversation?.customer?.phone
-            : conversation?.customer?.email,
-        metadata: conversation?.channel === "sms" ? smsMeta : null,
+        sender_contact: senderContact,
+        metadata: usedSms ? smsMeta : null,
       });
 
       if (error) throw error;
 
       // Update status to responded
-      await supabase
-        .from("conversations")
-        .update({ status: "responded" })
-        .eq("id", conversationId);
+      await supabase.from("conversations").update({ status: "responded" }).eq("id", conversationId);
 
       setNewMessage("");
       fetchData();
       onUpdate();
-      
-      if (conversation?.channel !== "sms" && conversation?.channel !== "email") {
-        toast.success("Message sent");
-      }
     } catch (error: any) {
       toast.error(error.message || "Failed to send message");
       console.error(error);
@@ -587,7 +601,7 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
             ) : (
               messages.map((msg) => {
                 const meta = msg.metadata as MessageMetadata | null;
-                const showSmsStatus = conversation.channel === "sms" && msg.direction === "outbound" && meta?.status;
+                const showSmsStatus = msg.direction === "outbound" && typeof meta?.status === "string";
                 
                 return (
                   <div
@@ -630,24 +644,33 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
 
           {/* Message Input */}
           <div className="p-4 border-t">
-            {/* Phone validation warning for SMS */}
-            {conversation.channel === "sms" && phoneValidation && !phoneValidation.isValid && (
+            {/* SMS preference + validation */}
+            {phoneValidation && !phoneValidation.isValid && !conversation.customer?.email && (
               <div className="mb-3 flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
                 <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <div>
-                  <span className="font-medium">Invalid phone number:</span>{" "}
-                  {phoneValidation.error}
+                  <span className="font-medium">Can’t send:</span> {phoneValidation.error}
                   <br />
-                  <span className="text-xs text-muted-foreground">
-                    Current: {conversation.customer?.phone || "No phone"}
-                  </span>
+                  <span className="text-xs text-muted-foreground">No email on file to fall back to.</span>
                 </div>
               </div>
             )}
-            {/* Show normalized number for SMS */}
-            {conversation.channel === "sms" && phoneValidation?.isValid && (
+
+            {phoneValidation && !phoneValidation.isValid && !!conversation.customer?.email && (
+              <div className="mb-3 flex items-start gap-2 p-2 bg-muted border border-border rounded-md text-sm text-muted-foreground">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="font-medium">SMS unavailable:</span> {phoneValidation.error}
+                  <br />
+                  <span className="text-xs">Will send email to {conversation.customer.email}.</span>
+                </div>
+              </div>
+            )}
+
+            {phoneValidation?.isValid && (
               <div className="mb-2 text-xs text-muted-foreground">
-                Sending to: <span className="font-mono">{formatPhoneForDisplay(phoneValidation.normalized!)}</span>
+                Sending SMS to:{" "}
+                <span className="font-mono">{formatPhoneForDisplay(phoneValidation.normalized!)}</span>
               </div>
             )}
             <div className="flex gap-2">
@@ -663,12 +686,12 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
                   }
                 }}
               />
-              <Button 
-                onClick={handleSendMessage} 
+              <Button
+                onClick={handleSendMessage}
                 disabled={
-                  sendingMessage || 
-                  !newMessage.trim() || 
-                  (conversation.channel === "sms" && !phoneValidation?.isValid)
+                  sendingMessage ||
+                  !newMessage.trim() ||
+                  (!phoneValidation?.isValid && !conversation.customer?.email)
                 }
               >
                 <Send className="h-4 w-4" />
