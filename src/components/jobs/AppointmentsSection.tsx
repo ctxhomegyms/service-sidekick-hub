@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Clock, User, Pencil, Check, X } from 'lucide-react';
+import { Calendar, Clock, User, Pencil, Check, X, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,9 @@ interface AppointmentsSectionProps {
     end_date: string | null;
     end_time: string | null;
     estimated_duration_minutes: number | null;
+    started_at?: string | null;
+    completed_at?: string | null;
+    actual_duration_minutes?: number | null;
     assigned_technician: { id: string; full_name: string | null; avatar_url: string | null } | null;
   };
   onUpdate: () => void;
@@ -287,6 +290,53 @@ export function AppointmentsSection({ job, onUpdate }: AppointmentsSectionProps)
               </div>
             )}
           </div>
+
+          {/* Time Tracking Section */}
+          {(job.started_at || job.actual_duration_minutes) && (
+            <div className="pt-4 border-t space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Timer className="w-4 h-4 text-muted-foreground" />
+                Time Tracking
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {job.started_at && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Started At</p>
+                    <span>{format(new Date(job.started_at), 'MMM d, h:mm a')}</span>
+                  </div>
+                )}
+                {job.completed_at && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Completed At</p>
+                    <span>{format(new Date(job.completed_at), 'MMM d, h:mm a')}</span>
+                  </div>
+                )}
+              </div>
+              {job.status === 'completed' && job.estimated_duration_minutes && job.actual_duration_minutes && (
+                <div className="grid grid-cols-3 gap-4 text-sm bg-muted/50 rounded-lg p-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Estimated</p>
+                    <span>{formatDuration(job.estimated_duration_minutes)}</span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Actual</p>
+                    <span className="font-medium">{formatDuration(job.actual_duration_minutes)}</span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Variance</p>
+                    <span className={
+                      job.actual_duration_minutes <= job.estimated_duration_minutes 
+                        ? "text-green-600 font-medium" 
+                        : "text-red-600 font-medium"
+                    }>
+                      {job.actual_duration_minutes <= job.estimated_duration_minutes ? '−' : '+'}
+                      {formatDuration(Math.abs(job.actual_duration_minutes - job.estimated_duration_minutes))}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

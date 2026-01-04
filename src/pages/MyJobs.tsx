@@ -32,6 +32,10 @@ interface Job {
   city: string | null;
   state: string | null;
   customer: { name: string; phone: string | null } | null;
+  started_at: string | null;
+  estimated_duration_minutes: number | null;
+  actual_duration_minutes: number | null;
+  completed_at: string | null;
 }
 
 interface ChecklistItem {
@@ -96,6 +100,10 @@ export default function MyJobs() {
           address,
           city,
           state,
+          started_at,
+          completed_at,
+          estimated_duration_minutes,
+          actual_duration_minutes,
           customer:customers(name, phone)
         `)
         .eq('assigned_technician_id', user?.id)
@@ -182,16 +190,20 @@ export default function MyJobs() {
 
   const handleStartJob = async (jobId: string) => {
     try {
+      const startedAt = new Date().toISOString();
       const { error } = await supabase
         .from('jobs')
-        .update({ status: 'in_progress' })
+        .update({ 
+          status: 'in_progress',
+          started_at: startedAt
+        })
         .eq('id', jobId);
 
       if (error) throw error;
-      toast.success('Job started');
+      toast.success('Work started - timer running');
       fetchMyJobs();
       if (selectedJob?.id === jobId) {
-        setSelectedJob(prev => prev ? { ...prev, status: 'in_progress' } : null);
+        setSelectedJob(prev => prev ? { ...prev, status: 'in_progress', started_at: startedAt } : null);
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -207,13 +219,30 @@ export default function MyJobs() {
     }
 
     try {
+      const completedAt = new Date();
+      
+      // Calculate actual duration if we have a started_at time
+      let actualDurationMinutes: number | null = null;
+      if (selectedJob?.started_at) {
+        const startedAt = new Date(selectedJob.started_at);
+        actualDurationMinutes = Math.round((completedAt.getTime() - startedAt.getTime()) / (1000 * 60));
+      }
+
       const { error } = await supabase
         .from('jobs')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .update({ 
+          status: 'completed', 
+          completed_at: completedAt.toISOString(),
+          actual_duration_minutes: actualDurationMinutes
+        })
         .eq('id', jobId);
 
       if (error) throw error;
-      toast.success('Job completed!');
+      
+      const durationText = actualDurationMinutes 
+        ? ` (${formatDurationMinutes(actualDurationMinutes)})` 
+        : '';
+      toast.success(`Job completed${durationText}!`);
       
       // Send completion notification to customer
       notifyJobCompleted(jobId);
@@ -223,6 +252,21 @@ export default function MyJobs() {
     } catch (error: any) {
       toast.error(error.message);
     }
+  };
+
+  const formatDurationMinutes = (minutes: number): string => {
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (mins === 0) return `${hours}h`;
+    return `${hours}h ${mins}m`;
+  };
+
+  const getElapsedTime = (startedAt: string): string => {
+    const start = new Date(startedAt);
+    const now = new Date();
+    const minutes = Math.round((now.getTime() - start.getTime()) / (1000 * 60));
+    return formatDurationMinutes(minutes);
   };
 
   const handleToggleChecklistItem = async (itemId: string, isCompleted: boolean) => {
@@ -373,6 +417,49 @@ export default function MyJobs() {
                       </div>
                     )}
                   </div>
+
+                  {/* Time Tracking Display */}
+                  {(selectedJob.status === 'in_progress' || selectedJob.status === 'completed') && (
+                    <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+                      <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time Tracking</h4>
+                      {selectedJob.status === 'in_progress' && selectedJob.started_at && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Elapsed Time</span>
+                          <span className="font-mono text-sm font-medium text-primary">
+                            {getElapsedTime(selectedJob.started_at)}
+                          </span>
+                        </div>
+                      )}
+                      {selectedJob.estimated_duration_minutes && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Estimated</span>
+                          <span className="text-sm">{formatDurationMinutes(selectedJob.estimated_duration_minutes)}</span>
+                        </div>
+                      )}
+                      {selectedJob.status === 'completed' && selectedJob.actual_duration_minutes && (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">Actual</span>
+                            <span className="font-medium text-sm">{formatDurationMinutes(selectedJob.actual_duration_minutes)}</span>
+                          </div>
+                          {selectedJob.estimated_duration_minutes && (
+                            <div className="flex items-center justify-between border-t pt-2">
+                              <span className="text-sm">Variance</span>
+                              <span className={cn(
+                                "font-medium text-sm",
+                                selectedJob.actual_duration_minutes <= selectedJob.estimated_duration_minutes 
+                                  ? "text-green-600" 
+                                  : "text-red-600"
+                              )}>
+                                {selectedJob.actual_duration_minutes <= selectedJob.estimated_duration_minutes ? '−' : '+'}
+                                {formatDurationMinutes(Math.abs(selectedJob.actual_duration_minutes - selectedJob.estimated_duration_minutes))}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {/* Photos Section */}
                   <Collapsible open={expandedSections.photos}>

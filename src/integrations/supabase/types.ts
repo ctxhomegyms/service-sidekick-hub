@@ -802,6 +802,7 @@ export type Database = {
       }
       jobs: {
         Row: {
+          actual_duration_minutes: number | null
           address: string | null
           assigned_technician_id: string | null
           city: string | null
@@ -826,6 +827,7 @@ export type Database = {
           recurrence_pattern: Json | null
           scheduled_date: string | null
           scheduled_time: string | null
+          started_at: string | null
           state: string | null
           status: Database["public"]["Enums"]["job_status"]
           time_window_end: string | null
@@ -835,6 +837,7 @@ export type Database = {
           zip_code: string | null
         }
         Insert: {
+          actual_duration_minutes?: number | null
           address?: string | null
           assigned_technician_id?: string | null
           city?: string | null
@@ -859,6 +862,7 @@ export type Database = {
           recurrence_pattern?: Json | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          started_at?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           time_window_end?: string | null
@@ -868,6 +872,7 @@ export type Database = {
           zip_code?: string | null
         }
         Update: {
+          actual_duration_minutes?: number | null
           address?: string | null
           assigned_technician_id?: string | null
           city?: string | null
@@ -892,6 +897,7 @@ export type Database = {
           recurrence_pattern?: Json | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          started_at?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           time_window_end?: string | null
@@ -995,6 +1001,8 @@ export type Database = {
           id: string
           sms_job_completed: boolean
           sms_job_scheduled: boolean
+          sms_reminder_1h: boolean
+          sms_reminder_24h: boolean
           sms_technician_en_route: boolean
           updated_at: string
         }
@@ -1007,6 +1015,8 @@ export type Database = {
           id?: string
           sms_job_completed?: boolean
           sms_job_scheduled?: boolean
+          sms_reminder_1h?: boolean
+          sms_reminder_24h?: boolean
           sms_technician_en_route?: boolean
           updated_at?: string
         }
@@ -1019,6 +1029,8 @@ export type Database = {
           id?: string
           sms_job_completed?: boolean
           sms_job_scheduled?: boolean
+          sms_reminder_1h?: boolean
+          sms_reminder_24h?: boolean
           sms_technician_en_route?: boolean
           updated_at?: string
         }
