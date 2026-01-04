@@ -83,6 +83,9 @@ export default {
           urgent: "hsl(var(--priority-urgent))",
         },
       },
+      fontFamily: {
+        'heading': ['"Eurostile Extended"', 'system-ui', 'sans-serif'],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
