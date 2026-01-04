@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, RefreshCw, ShoppingBag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { JobCard } from '@/components/jobs/JobCard';
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 interface Job {
   id: string;
@@ -38,6 +39,8 @@ export default function Jobs() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [view, setView] = useState<JobsView>('grid');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchJobs();
@@ -71,6 +74,34 @@ export default function Jobs() {
     }
   };
 
+  const syncShopifyOrders = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-shopify-orders');
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast({
+          title: 'Shopify Sync Complete',
+          description: `Imported ${data.imported} orders, ${data.skipped} already existed.`,
+        });
+        fetchJobs(); // Refresh the jobs list
+      } else {
+        throw new Error(data.error || 'Sync failed');
+      }
+    } catch (error) {
+      console.error('Shopify sync error:', error);
+      toast({
+        title: 'Sync Failed',
+        description: error instanceof Error ? error.message : 'Failed to sync Shopify orders',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.customer?.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -88,10 +119,25 @@ export default function Jobs() {
             <p className="text-muted-foreground">Manage and track all service jobs</p>
           </div>
           
-          <Button className="gap-2" onClick={() => setIsDialogOpen(true)}>
-            <Plus className="w-4 h-4" />
-            New Job
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2" 
+              onClick={syncShopifyOrders}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <ShoppingBag className="w-4 h-4" />
+              )}
+              {isSyncing ? 'Syncing...' : 'Sync Shopify'}
+            </Button>
+            <Button className="gap-2" onClick={() => setIsDialogOpen(true)}>
+              <Plus className="w-4 h-4" />
+              New Job
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
