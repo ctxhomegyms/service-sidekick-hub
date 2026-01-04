@@ -66,8 +66,8 @@ export function CalendarJobCard({ job, onClick, compact = false }: CalendarJobCa
       )}
     >
       {isCompleted && (
-        <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
-          <Check className="w-3 h-3 text-white" />
+        <div className="absolute -top-1 -right-1 w-5 h-5 bg-success rounded-full flex items-center justify-center shadow-sm">
+          <Check className="w-3 h-3 text-success-foreground" />
         </div>
       )}
 
