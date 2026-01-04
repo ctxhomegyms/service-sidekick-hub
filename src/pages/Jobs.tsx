@@ -3,6 +3,7 @@ import { Plus, Search, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { JobCard } from '@/components/jobs/JobCard';
+import { JobCreateDialog } from '@/components/jobs/JobCreateDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,20 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { notifyJobScheduled } from '@/lib/notifications';
-import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface Job {
   id: string;
@@ -41,212 +28,41 @@ interface Job {
   technician: { full_name: string | null; avatar_url: string | null } | null;
 }
 
-interface Customer {
-  id: string;
-  name: string;
-}
-
-interface Technician {
-  id: string;
-  full_name: string | null;
-}
-
-interface ChecklistTemplate {
-  id: string;
-  name: string;
-  items: { item_text: string; sort_order: number }[];
-}
-
 export default function Jobs() {
-  const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
-  const [newJob, setNewJob] = useState<{
-    title: string;
-    description: string;
-    customer_id: string;
-    assigned_technician_id: string;
-    priority: 'low' | 'medium' | 'high' | 'urgent';
-    scheduled_date: string;
-    scheduled_time: string;
-    time_window_start: string;
-    time_window_end: string;
-    address: string;
-    city: string;
-    state: string;
-    zip_code: string;
-    template_id: string;
-  }>({
-    title: '',
-    description: '',
-    customer_id: '',
-    assigned_technician_id: '',
-    priority: 'medium',
-    scheduled_date: '',
-    scheduled_time: '',
-    time_window_start: '',
-    time_window_end: '',
-    address: '',
-    city: '',
-    state: '',
-    zip_code: '',
-    template_id: '',
-  });
 
   useEffect(() => {
-    fetchData();
+    fetchJobs();
   }, []);
 
-  const fetchData = async () => {
+  const fetchJobs = async () => {
     try {
-      const [jobsRes, customersRes, techniciansRes, templatesRes] = await Promise.all([
-        supabase
-          .from('jobs')
-          .select(`
-            id,
-            title,
-            description,
-            status,
-            priority,
-            scheduled_date,
-            scheduled_time,
-            address,
-            city,
-            customer:customers(name),
-            technician:profiles!jobs_assigned_technician_id_fkey(full_name, avatar_url)
-          `)
-          .order('created_at', { ascending: false }),
-        supabase.from('customers').select('id, name').order('name'),
-        supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', (await supabase.from('user_roles').select('user_id').eq('role', 'technician')).data?.map(r => r.user_id) || []),
-        supabase.from('checklist_templates').select('id, name').order('name'),
-      ]);
+      const { data } = await supabase
+        .from('jobs')
+        .select(`
+          id,
+          title,
+          description,
+          status,
+          priority,
+          scheduled_date,
+          scheduled_time,
+          address,
+          city,
+          customer:customers(name),
+          technician:profiles!jobs_assigned_technician_id_fkey(full_name, avatar_url)
+        `)
+        .order('created_at', { ascending: false });
 
-      if (jobsRes.data) setJobs(jobsRes.data as unknown as Job[]);
-      if (customersRes.data) setCustomers(customersRes.data);
-      if (techniciansRes.data) setTechnicians(techniciansRes.data);
-      
-      // Fetch template items for each template
-      if (templatesRes.data) {
-        const templatesWithItems = await Promise.all(
-          templatesRes.data.map(async (t) => {
-            const { data: itemsData } = await supabase
-              .from('checklist_template_items')
-              .select('item_text, sort_order')
-              .eq('template_id', t.id)
-              .order('sort_order');
-            return { ...t, items: itemsData || [] };
-          })
-        );
-        setTemplates(templatesWithItems);
-      }
+      if (data) setJobs(data as unknown as Job[]);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching jobs:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleCreateJob = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newJob.title.trim()) {
-      toast.error('Please enter a job title');
-      return;
-    }
-
-    try {
-      // Geocode address if provided
-      let latitude: number | null = null;
-      let longitude: number | null = null;
-      
-      if (newJob.address) {
-        const { data: geoData } = await supabase.functions.invoke('geocode-address', {
-          body: { 
-            address: newJob.address, 
-            city: newJob.city, 
-            state: newJob.state, 
-            zip_code: newJob.zip_code 
-          }
-        });
-        if (geoData?.latitude && geoData?.longitude) {
-          latitude = geoData.latitude;
-          longitude = geoData.longitude;
-        }
-      }
-
-      const isScheduled = !!newJob.scheduled_date;
-      const { data, error } = await supabase.from('jobs').insert({
-        title: newJob.title,
-        description: newJob.description || null,
-        customer_id: newJob.customer_id || null,
-        assigned_technician_id: newJob.assigned_technician_id || null,
-        priority: newJob.priority,
-        scheduled_date: newJob.scheduled_date || null,
-        scheduled_time: newJob.scheduled_time || null,
-        time_window_start: newJob.time_window_start || null,
-        time_window_end: newJob.time_window_end || null,
-        address: newJob.address || null,
-        city: newJob.city || null,
-        state: newJob.state || null,
-        zip_code: newJob.zip_code || null,
-        latitude,
-        longitude,
-        created_by: user?.id,
-        status: isScheduled ? 'scheduled' : 'pending',
-      }).select('id').single();
-
-      if (error) throw error;
-
-      // Add checklist items from template if selected
-      if (newJob.template_id && data) {
-        const selectedTemplate = templates.find(t => t.id === newJob.template_id);
-        if (selectedTemplate && selectedTemplate.items.length > 0) {
-          const checklistItems = selectedTemplate.items.map((item, index) => ({
-            job_id: data.id,
-            item_text: item.item_text,
-            sort_order: item.sort_order,
-          }));
-          
-          await supabase.from('job_checklist_items').insert(checklistItems);
-        }
-      }
-
-      // Send notification if job is scheduled with a customer
-      if (isScheduled && newJob.customer_id && data) {
-        notifyJobScheduled(data.id);
-      }
-
-      toast.success('Job created successfully');
-      setIsDialogOpen(false);
-      setNewJob({
-        title: '',
-        description: '',
-        customer_id: '',
-        assigned_technician_id: '',
-        priority: 'medium',
-        scheduled_date: '',
-        scheduled_time: '',
-        time_window_start: '',
-        time_window_end: '',
-        address: '',
-        city: '',
-        state: '',
-        zip_code: '',
-        template_id: '',
-      });
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create job');
     }
   };
 
@@ -267,216 +83,10 @@ export default function Jobs() {
             <p className="text-muted-foreground">Manage and track all service jobs</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                New Job
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New Job</DialogTitle>
-                <DialogDescription>
-                  Add a new service job to the system
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateJob} className="space-y-4">
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Job Title *</Label>
-                    <Input
-                      id="title"
-                      value={newJob.title}
-                      onChange={(e) => setNewJob(j => ({ ...j, title: e.target.value }))}
-                      placeholder="e.g., AC Repair, Plumbing Fix"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={newJob.description}
-                      onChange={(e) => setNewJob(j => ({ ...j, description: e.target.value }))}
-                      placeholder="Job details..."
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="customer">Customer</Label>
-                      <Select
-                        value={newJob.customer_id}
-                        onValueChange={(value) => setNewJob(j => ({ ...j, customer_id: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="technician">Assign Technician</Label>
-                      <Select
-                        value={newJob.assigned_technician_id}
-                        onValueChange={(value) => setNewJob(j => ({ ...j, assigned_technician_id: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select technician" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {technicians.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.full_name || 'Unknown'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Scheduled Date</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        value={newJob.scheduled_date}
-                        onChange={(e) => setNewJob(j => ({ ...j, scheduled_date: e.target.value }))}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="priority">Priority</Label>
-                      <Select
-                        value={newJob.priority}
-                        onValueChange={(value: 'low' | 'medium' | 'high' | 'urgent') => 
-                          setNewJob(j => ({ ...j, priority: value }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="time">Scheduled Time</Label>
-                      <Input
-                        id="time"
-                        type="time"
-                        value={newJob.scheduled_time}
-                        onChange={(e) => setNewJob(j => ({ ...j, scheduled_time: e.target.value }))}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="window_start">Time Window Start</Label>
-                      <Input
-                        id="window_start"
-                        type="time"
-                        value={newJob.time_window_start}
-                        onChange={(e) => setNewJob(j => ({ ...j, time_window_start: e.target.value }))}
-                        placeholder="e.g., 09:00"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="window_end">Time Window End</Label>
-                      <Input
-                        id="window_end"
-                        type="time"
-                        value={newJob.time_window_end}
-                        onChange={(e) => setNewJob(j => ({ ...j, time_window_end: e.target.value }))}
-                        placeholder="e.g., 17:00"
-                      />
-                    </div>
-                  </div>
-
-                  {templates.length > 0 && (
-                    <div className="space-y-2">
-                      <Label htmlFor="template">Checklist Template</Label>
-                      <Select
-                        value={newJob.template_id}
-                        onValueChange={(value) => setNewJob(j => ({ ...j, template_id: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a checklist template (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {templates.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.name} ({t.items.length} items)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Input
-                      id="address"
-                      value={newJob.address}
-                      onChange={(e) => setNewJob(j => ({ ...j, address: e.target.value }))}
-                      placeholder="Street address"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="city">City</Label>
-                      <Input
-                        id="city"
-                        value={newJob.city}
-                        onChange={(e) => setNewJob(j => ({ ...j, city: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="state">State</Label>
-                      <Input
-                        id="state"
-                        value={newJob.state}
-                        onChange={(e) => setNewJob(j => ({ ...j, state: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="zip">ZIP Code</Label>
-                      <Input
-                        id="zip"
-                        value={newJob.zip_code}
-                        onChange={(e) => setNewJob(j => ({ ...j, zip_code: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Create Job</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button className="gap-2" onClick={() => setIsDialogOpen(true)}>
+            <Plus className="w-4 h-4" />
+            New Job
+          </Button>
         </div>
 
         {/* Filters */}
@@ -524,6 +134,13 @@ export default function Jobs() {
           </div>
         )}
       </div>
+
+      {/* Job Create Dialog */}
+      <JobCreateDialog 
+        open={isDialogOpen} 
+        onOpenChange={setIsDialogOpen}
+        onSuccess={fetchJobs}
+      />
     </AppLayout>
   );
 }
