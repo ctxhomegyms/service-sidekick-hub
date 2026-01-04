@@ -46,6 +46,35 @@ interface ShopifyOrder {
   fulfillment_status: string | null;
 }
 
+// Function to get access token using OAuth client credentials
+async function getShopifyAccessToken(storeDomain: string, clientId: string, clientSecret: string): Promise<string> {
+  console.log(`Requesting access token for store: ${storeDomain}`);
+  
+  const tokenUrl = `https://${storeDomain}/admin/oauth/access_token`;
+  
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'client_credentials',
+    }),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Token request failed:', errorText);
+    throw new Error(`Failed to get access token: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  console.log('Successfully obtained access token');
+  return data.access_token;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -53,13 +82,14 @@ serve(async (req) => {
   }
 
   try {
-    const shopifyAccessToken = Deno.env.get('SHOPIFY_ACCESS_TOKEN');
+    const shopifyClientId = Deno.env.get('SHOPIFY_CLIENT_ID');
+    const shopifyClientSecret = Deno.env.get('SHOPIFY_CLIENT_SECRET');
     let shopifyStoreDomain = Deno.env.get('SHOPIFY_STORE_DOMAIN');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!shopifyAccessToken || !shopifyStoreDomain) {
-      throw new Error('Missing Shopify credentials');
+    if (!shopifyClientId || !shopifyClientSecret || !shopifyStoreDomain) {
+      throw new Error('Missing Shopify credentials (CLIENT_ID, CLIENT_SECRET, or STORE_DOMAIN)');
     }
 
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -87,6 +117,9 @@ serve(async (req) => {
     console.log('Starting Shopify order sync...');
     console.log(`Store domain: ${shopifyStoreDomain}`);
 
+    // Get access token using client credentials
+    const accessToken = await getShopifyAccessToken(shopifyStoreDomain, shopifyClientId, shopifyClientSecret);
+
     // Fetch orders with LD tag from Shopify
     // Using the Admin API to get orders
     const shopifyApiUrl = `https://${shopifyStoreDomain}/admin/api/2024-01/orders.json?status=any&limit=50`;
@@ -95,7 +128,7 @@ serve(async (req) => {
     
     const shopifyResponse = await fetch(shopifyApiUrl, {
       headers: {
-        'X-Shopify-Access-Token': shopifyAccessToken,
+        'X-Shopify-Access-Token': accessToken,
         'Content-Type': 'application/json',
       },
     });
