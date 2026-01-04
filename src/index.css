@@ -146,6 +146,29 @@
     text-wrap: balance;
   }
 
+  /* Safe area utilities for mobile devices with notches/home indicators */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .safe-area-inset-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+  }
+
+  /* Prevent overscroll bounce on iOS */
+  .no-overscroll {
+    overscroll-behavior: none;
+  }
+
+  /* Touch action for signature canvas */
+  .touch-draw {
+    touch-action: none;
+  }
+
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
   }

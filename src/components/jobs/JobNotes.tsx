@@ -81,19 +81,20 @@ export function JobNotes({ jobId, notes, onNoteAdded, readOnly = false }: JobNot
 
       {/* Add note form */}
       {!readOnly && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-end">
           <Textarea
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder="Add a note..."
-            className="min-h-[60px] resize-none"
+            className="min-h-[60px] resize-none text-base"
           />
           <Button
-            size="icon"
+            size="default"
             onClick={handleSubmit}
             disabled={!newNote.trim() || isSubmitting}
+            className="h-11 w-11 shrink-0 p-0"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-5 h-5" />
           </Button>
         </div>
       )}

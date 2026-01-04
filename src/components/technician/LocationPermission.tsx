@@ -199,9 +199,9 @@ export function LocationPermission() {
   if (permissionState === 'denied') {
     return (
       <Card className="border-dashed border-amber-500/50 bg-amber-500/5">
-        <CardContent className="flex items-center justify-between gap-3 p-3">
+        <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3">
           <div className="flex items-center gap-3">
-            <MapPinOff className="h-4 w-4 text-amber-600" />
+            <MapPinOff className="h-4 w-4 text-amber-600 shrink-0" />
             <span className="text-sm text-amber-700">Location permission denied. Enable in browser settings.</span>
           </div>
         </CardContent>
@@ -211,11 +211,11 @@ export function LocationPermission() {
 
   return (
     <Card className={isTracking ? 'border-green-500/50 bg-green-500/5' : 'border-dashed'}>
-      <CardContent className="flex items-center justify-between gap-3 p-3">
+      <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3">
         <div className="flex items-center gap-3">
           {isTracking ? (
             <>
-              <div className="relative">
+              <div className="relative shrink-0">
                 <MapPin className="h-4 w-4 text-green-600" />
                 <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
               </div>
@@ -223,7 +223,7 @@ export function LocationPermission() {
             </>
           ) : (
             <>
-              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="text-sm text-muted-foreground">Share your location with dispatch</span>
             </>
           )}
@@ -232,6 +232,7 @@ export function LocationPermission() {
           size="sm"
           variant={isTracking ? 'destructive' : 'default'}
           onClick={toggleTracking}
+          className="w-full sm:w-auto shrink-0"
         >
           {isTracking ? 'Stop Sharing' : 'Share Location'}
         </Button>

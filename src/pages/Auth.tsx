@@ -138,7 +138,7 @@ export default function Auth() {
   // If there's an invite token, show the accept invitation form
   if (inviteToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background safe-area-pt safe-area-pb">
         <Card className="w-full max-w-md shadow-lg border-0">
           <CardHeader className="text-center pb-2">
             <div className="flex items-center justify-center gap-2 mb-4">
@@ -150,12 +150,12 @@ export default function Auth() {
 
             {inviteError ? (
               <>
-                <CardTitle className="text-2xl text-destructive">Invalid Invitation</CardTitle>
+                <CardTitle className="text-xl sm:text-2xl text-destructive">Invalid Invitation</CardTitle>
                 <CardDescription>{inviteError}</CardDescription>
               </>
             ) : invitation ? (
               <>
-                <CardTitle className="text-2xl">Accept Your Invitation</CardTitle>
+                <CardTitle className="text-xl sm:text-2xl">Accept Your Invitation</CardTitle>
                 <CardDescription>
                   Create your account to join the team
                 </CardDescription>
@@ -164,10 +164,10 @@ export default function Auth() {
           </CardHeader>
 
           {invitation && !inviteError && (
-            <CardContent>
-              <div className="mb-6 p-3 rounded-lg bg-muted flex items-center justify-between">
+            <CardContent className="px-4 sm:px-6">
+              <div className="mb-6 p-3 rounded-lg bg-muted flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-primary" />
+                  <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
                   <span className="text-sm">You're being invited as:</span>
                 </div>
                 <Badge className="capitalize">{invitation.role}</Badge>
@@ -182,7 +182,7 @@ export default function Auth() {
                       id="invite-name"
                       type="text"
                       placeholder="John Doe"
-                      className="pl-10"
+                      className="pl-10 h-12 text-base"
                       value={signupData.fullName}
                       onChange={(e) => setSignupData((d) => ({ ...d, fullName: e.target.value }))}
                       required
@@ -196,7 +196,7 @@ export default function Auth() {
                     <Input
                       id="invite-email"
                       type="email"
-                      className="pl-10 bg-muted"
+                      className="pl-10 h-12 text-base bg-muted"
                       value={signupData.email}
                       readOnly
                     />
@@ -210,14 +210,14 @@ export default function Auth() {
                       id="invite-password"
                       type="password"
                       placeholder="••••••••"
-                      className="pl-10"
+                      className="pl-10 h-12 text-base"
                       value={signupData.password}
                       onChange={(e) => setSignupData((d) => ({ ...d, password: e.target.value }))}
                       required
                     />
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full h-12 text-base" disabled={isLoading}>
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   Create Account & Join Team
                 </Button>
@@ -226,10 +226,10 @@ export default function Auth() {
           )}
 
           {inviteError && (
-            <CardContent>
+            <CardContent className="px-4 sm:px-6">
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full h-12"
                 onClick={() => navigate('/auth')}
               >
                 Go to Sign In

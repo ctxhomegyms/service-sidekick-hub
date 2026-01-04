@@ -11,7 +11,7 @@ import {
   Inbox,
   Shield
 } from 'lucide-react';
-import { NavLink as RouterNavLink } from 'react-router-dom';
+import { NavLink as RouterNavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Sidebar,
@@ -24,10 +24,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useEffect } from 'react';
 
 const adminItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -46,6 +48,13 @@ const technicianItems = [
 
 export function AppSidebar() {
   const { profile, isAdmin, isManager, signOut } = useAuth();
+  const { setOpenMobile } = useSidebar();
+  const location = useLocation();
+  
+  // Auto-close sidebar on mobile when navigating
+  useEffect(() => {
+    setOpenMobile(false);
+  }, [location.pathname, setOpenMobile]);
   
   const items = isManager ? adminItems : technicianItems;
 
