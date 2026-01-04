@@ -59,7 +59,13 @@ interface JobData {
     is_required: boolean;
     is_completed: boolean;
     completed_at: string | null;
+    completed_by: string | null;
     sort_order: number;
+    image_url: string | null;
+    signature_url: string | null;
+    response_text: string | null;
+    response_value: unknown;
+    options: unknown;
   }>;
 }
 
