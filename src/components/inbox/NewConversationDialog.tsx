@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -18,7 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Phone, MessageSquare, Mail } from "lucide-react";
+import { Phone, MessageSquare, Mail, AlertCircle } from "lucide-react";
+import { normalizePhoneNumber, formatPhoneForDisplay } from "@/lib/phoneValidation";
 
 type ConversationChannel = "phone" | "sms" | "email";
 
@@ -60,18 +61,29 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
     }
   };
 
+  // Validate phone number when SMS channel is selected
+  const selectedCustomer = customers.find(c => c.id === customerId);
+  
+  const phoneValidation = useMemo(() => {
+    if (channel !== "sms") return null;
+    if (!selectedCustomer?.phone) {
+      return { isValid: false, normalized: null, error: "Customer has no phone number" };
+    }
+    return normalizePhoneNumber(selectedCustomer.phone);
+  }, [channel, selectedCustomer?.phone]);
+
   const handleSubmit = async () => {
     if (!customerId) {
       toast.error("Please select a customer");
       return;
     }
 
-    const selectedCustomer = customers.find(c => c.id === customerId);
-
     // Validate contact info for selected channel
-    if (channel === "sms" && !selectedCustomer?.phone) {
-      toast.error("Selected customer has no phone number for SMS");
-      return;
+    if (channel === "sms") {
+      if (!phoneValidation?.isValid) {
+        toast.error(phoneValidation?.error || "Invalid phone number for SMS");
+        return;
+      }
     }
     if (channel === "email" && !selectedCustomer?.email) {
       toast.error("Selected customer has no email address");
@@ -113,10 +125,10 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
           .eq("id", convData.id);
 
         // Send via appropriate channel
-        if (channel === "sms" && selectedCustomer?.phone) {
+        if (channel === "sms" && phoneValidation?.normalized) {
           const { data, error: smsError } = await supabase.functions.invoke("send-sms", {
             body: {
-              to: selectedCustomer.phone,
+              to: phoneValidation.normalized, // Send normalized E.164 number
               message: initialMessage.trim(),
               conversationId: convData.id,
             },
@@ -231,6 +243,27 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
             </div>
           </div>
 
+          {/* Phone validation warning for SMS */}
+          {channel === "sms" && customerId && phoneValidation && !phoneValidation.isValid && (
+            <div className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <span className="font-medium">Invalid phone number:</span>{" "}
+                {phoneValidation.error}
+                <br />
+                <span className="text-xs text-muted-foreground">
+                  Current: {selectedCustomer?.phone || "No phone"}
+                </span>
+              </div>
+            </div>
+          )}
+          {/* Show normalized number for SMS */}
+          {channel === "sms" && phoneValidation?.isValid && (
+            <div className="text-xs text-muted-foreground">
+              Will send to: <span className="font-mono">{formatPhoneForDisplay(phoneValidation.normalized!)}</span>
+            </div>
+          )}
+
           {/* Subject (optional) */}
           <div className="space-y-2">
             <Label>Subject (optional)</Label>
@@ -257,7 +290,10 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={loading}>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={loading || (channel === "sms" && !phoneValidation?.isValid)}
+            >
               {loading ? "Creating..." : "Create Conversation"}
             </Button>
           </div>
