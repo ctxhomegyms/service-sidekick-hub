@@ -6,6 +6,7 @@ import { StatCard } from '@/components/stats/StatCard';
 import { JobCard } from '@/components/jobs/JobCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { TodaysScheduleWidget } from '@/components/dashboard/TodaysScheduleWidget';
 
 interface JobStats {
   total: number;
@@ -143,55 +144,63 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Quick Stats Row */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card className="animate-fade-in">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-warning" />
-                Requires Attention
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-3xl font-bold">{stats.pending + stats.urgent}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {stats.pending} pending, {stats.urgent} urgent
-                  </p>
-                </div>
-                <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center">
-                  <AlertTriangle className="w-8 h-8 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Today's Schedule + Quick Stats Row */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          {/* Today's Schedule Widget - Takes 2 columns */}
+          <div className="lg:col-span-2">
+            <TodaysScheduleWidget />
+          </div>
 
-          <Card className="animate-fade-in">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-success" />
-                Completion Rate
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-3xl font-bold">
-                    {stats.total > 0 
-                      ? Math.round((stats.completed / stats.total) * 100) 
-                      : 0}%
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {stats.completed} of {stats.total} jobs completed
-                  </p>
+          {/* Quick Stats Column */}
+          <div className="space-y-4">
+            <Card className="animate-fade-in">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-warning" />
+                  Requires Attention
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-3xl font-bold">{stats.pending + stats.urgent}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {stats.pending} pending, {stats.urgent} urgent
+                    </p>
+                  </div>
+                  <div className="w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center">
+                    <AlertTriangle className="w-7 h-7 text-warning" />
+                  </div>
                 </div>
-                <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
-                  <CheckCircle2 className="w-8 h-8 text-success" />
+              </CardContent>
+            </Card>
+
+            <Card className="animate-fade-in">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-success" />
+                  Completion Rate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-3xl font-bold">
+                      {stats.total > 0 
+                        ? Math.round((stats.completed / stats.total) * 100) 
+                        : 0}%
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {stats.completed} of {stats.total} jobs completed
+                    </p>
+                  </div>
+                  <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center">
+                    <CheckCircle2 className="w-7 h-7 text-success" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Recent Jobs */}
