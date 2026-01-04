@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { 
-  MapPin, Clock, CheckCircle2, PlayCircle, User, Power, 
+  MapPin, Clock, CheckCircle2, PlayCircle, User, 
   Camera, Pen, MessageSquare, ChevronDown, ChevronUp 
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useGeolocation } from '@/hooks/useGeolocation';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,7 +63,6 @@ interface JobSignature {
 
 export default function MyJobs() {
   const { user } = useAuth();
-  const { isOnShift, toggleShift, location } = useGeolocation();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
@@ -258,38 +256,10 @@ export default function MyJobs() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Jobs</h1>
-            <p className="text-muted-foreground">View and manage your assigned jobs</p>
-          </div>
-          
-          {/* Shift Toggle */}
-          <Button
-            variant={isOnShift ? "default" : "outline"}
-            onClick={toggleShift}
-            className={cn(
-              "gap-2",
-              isOnShift && "bg-success hover:bg-success/90"
-            )}
-          >
-            <Power className="w-4 h-4" />
-            {isOnShift ? 'On Shift' : 'Start Shift'}
-          </Button>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">My Jobs</h1>
+          <p className="text-muted-foreground">View and manage your assigned jobs</p>
         </div>
-
-        {/* Location Status */}
-        {isOnShift && location.latitude && (
-          <Card className="bg-success/10 border-success/30">
-            <CardContent className="py-3 flex items-center gap-2 text-sm">
-              <MapPin className="w-4 h-4 text-success" />
-              <span className="text-success">Location tracking active</span>
-              <span className="text-muted-foreground ml-auto text-xs">
-                {location.latitude.toFixed(4)}, {location.longitude?.toFixed(4)}
-              </span>
-            </CardContent>
-          </Card>
-        )}
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Jobs List */}
