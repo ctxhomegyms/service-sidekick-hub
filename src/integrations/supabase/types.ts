@@ -848,6 +848,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "jobs_assigned_technician_id_fkey"
+            columns: ["assigned_technician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "jobs_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
