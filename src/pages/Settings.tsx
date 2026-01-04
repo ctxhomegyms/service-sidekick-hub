@@ -2,13 +2,14 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
+import { JobTypesManager } from '@/components/settings/JobTypesManager';
 
 export default function Settings() {
   const { profile, roles } = useAuth();
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6 max-w-3xl">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
           <p className="text-muted-foreground">Manage your account and preferences</p>
@@ -46,6 +47,8 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        <JobTypesManager />
 
         <Card>
           <CardHeader>
