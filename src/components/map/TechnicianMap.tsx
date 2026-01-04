@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { renderMapJobCardHTML } from './MapJobCard';
 
 interface Job {
   id: string;
@@ -545,17 +546,10 @@ export const TechnicianMap: React.FC<TechnicianMapProps> = ({ onStatsChange }) =
 
           const jobRoute = routes.find(r => r.jobId === job.id);
           const isLate = lateJobIds.includes(job.id);
-          const etaText = jobRoute 
-            ? `<br/><span style="font-size: 11px; color: ${isLate ? '#EF4444' : '#8B5CF6'}; margin-top: 4px; display: block;">🚗 Tech arriving in ~${jobRoute.durationMinutes} min${isLate ? ' ⚠️ LATE' : ''}</span>`
-            : '';
-
-          const timeWindowText = job.time_window_start && job.time_window_end
-            ? `<br/><span style="font-size: 11px; color: ${isLate ? '#EF4444' : '#666'};">⏰ Window: ${job.time_window_start.slice(0, 5)} - ${job.time_window_end.slice(0, 5)}${isLate ? ' (Late!)' : ''}</span>`
-            : '';
-
-          const scheduledTimeText = job.scheduled_time
-            ? `<br/><span style="font-size: 11px; color: #666;">📅 Scheduled: ${job.scheduled_time.slice(0, 5)}</span>`
-            : '';
+          
+          // Find technician name for this job
+          const techLocation = locations.find(l => l.technician_id === job.assigned_technician_id);
+          const technicianName = techLocation?.profile?.full_name || null;
 
           const el = document.createElement('div');
           el.className = 'job-marker';
@@ -579,6 +573,7 @@ export const TechnicianMap: React.FC<TechnicianMapProps> = ({ onStatsChange }) =
               align-items: center;
               justify-content: center;
               position: relative;
+              transition: transform 0.15s ease;
             ">
               ${isLate ? `
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
@@ -592,44 +587,66 @@ export const TechnicianMap: React.FC<TechnicianMapProps> = ({ onStatsChange }) =
             </div>
           `;
 
+          // Hover effect
+          el.addEventListener('mouseenter', () => {
+            const innerDiv = el.querySelector('div');
+            if (innerDiv) {
+              innerDiv.style.transform = 'scale(1.15)';
+            }
+          });
+          el.addEventListener('mouseleave', () => {
+            const innerDiv = el.querySelector('div');
+            if (innerDiv) {
+              innerDiv.style.transform = 'scale(1)';
+            }
+          });
+
           // Click to navigate to job details
           el.addEventListener('click', (e) => {
             e.stopPropagation();
             navigate(`/jobs/${job.id}`);
           });
 
-          const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-            <div style="padding: 8px; min-width: 150px;">
-              <strong>${job.title}</strong>
-              ${isLate ? '<span style="color: #EF4444; margin-left: 4px;">⚠️</span>' : ''}
-              <br/>
-              <span style="font-size: 12px; color: #666;">
-                ${job.customer?.name || 'No customer'}
-              </span>
-              <br/>
-              <span style="
-                display: inline-block;
-                padding: 2px 6px;
-                border-radius: 4px;
-                font-size: 11px;
-                background: ${color}20;
-                color: ${color};
-                margin-top: 4px;
-              ">
-                ${job.status.replace('_', ' ')}
-              </span>
-              ${scheduledTimeText}
-              ${timeWindowText}
-              ${etaText}
-              ${job.address ? `<br/><span style="font-size: 11px; color: #888;">${job.address}</span>` : ''}
-              <br/>
-              <a href="/jobs/${job.id}" style="font-size: 11px; color: #3B82F6; text-decoration: underline; margin-top: 4px; display: inline-block;">View Details →</a>
-            </div>
-          `);
+          // Create popup with styled job card - shows on hover
+          const popupHTML = renderMapJobCardHTML({
+            job: {
+              id: job.id,
+              title: job.title,
+              status: job.status,
+              priority: job.priority,
+              address: job.address,
+              city: job.city,
+              state: job.state,
+              scheduled_time: job.scheduled_time,
+              time_window_start: job.time_window_start,
+              time_window_end: job.time_window_end,
+              customer: job.customer,
+            },
+            eta: jobRoute ? {
+              durationMinutes: jobRoute.durationMinutes,
+              distanceMiles: jobRoute.distanceMiles,
+            } : null,
+            isLate,
+            technicianName,
+          });
+
+          const popup = new mapboxgl.Popup({ 
+            offset: 25,
+            closeButton: false,
+            closeOnClick: false,
+            maxWidth: '300px',
+          }).setHTML(popupHTML);
+
+          // Show popup on hover
+          el.addEventListener('mouseenter', () => {
+            popup.setLngLat([job.longitude!, job.latitude!]).addTo(currentMap);
+          });
+          el.addEventListener('mouseleave', () => {
+            popup.remove();
+          });
 
           const marker = new mapboxgl.Marker(el)
             .setLngLat([job.longitude, job.latitude])
-            .setPopup(popup)
             .addTo(currentMap);
 
           markersRef.current.push(marker);
