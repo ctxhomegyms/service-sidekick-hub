@@ -30,10 +30,19 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { normalizePhoneNumber, formatPhoneForDisplay } from "@/lib/phoneValidation";
+import SmsStatusBadge from "./SmsStatusBadge";
 
 type ConversationChannel = "phone" | "sms" | "email";
 type ConversationStatus = "unread" | "read" | "responded" | "missed" | "closed";
 type MessageDirection = "inbound" | "outbound";
+
+interface MessageMetadata {
+  sid?: string;
+  status?: string;
+  to?: string;
+  error_code?: number | null;
+  error_message?: string | null;
+}
 
 interface Message {
   id: string;
@@ -43,6 +52,7 @@ interface Message {
   sender_name: string | null;
   sender_contact: string | null;
   created_at: string;
+  metadata?: MessageMetadata | Record<string, unknown> | null;
 }
 
 interface Note {
@@ -148,7 +158,7 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
         .order("created_at", { ascending: true });
 
       if (msgError) throw msgError;
-      setMessages(msgData || []);
+      setMessages((msgData || []) as Message[]);
 
       // Fetch notes
       const { data: noteData, error: noteError } = await supabase
@@ -575,32 +585,45 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
             {messages.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No messages yet</p>
             ) : (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}
-                >
+              messages.map((msg) => {
+                const meta = msg.metadata as MessageMetadata | null;
+                const showSmsStatus = conversation.channel === "sms" && msg.direction === "outbound" && meta?.status;
+                
+                return (
                   <div
-                    className={`max-w-[70%] p-3 rounded-lg ${
-                      msg.direction === "outbound"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
+                    key={msg.id}
+                    className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                    <p
-                      className={`text-xs mt-1 ${
+                    <div
+                      className={`max-w-[70%] p-3 rounded-lg ${
                         msg.direction === "outbound"
-                          ? "text-primary-foreground/70"
-                          : "text-muted-foreground"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
                       }`}
                     >
-                      {msg.sender_name && `${msg.sender_name} • `}
-                      {format(new Date(msg.created_at), "MMM d, h:mm a")}
-                    </p>
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <div
+                        className={`flex items-center gap-2 mt-1 ${
+                          msg.direction === "outbound"
+                            ? "text-primary-foreground/70"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        <span className="text-xs">
+                          {msg.sender_name && `${msg.sender_name} • `}
+                          {format(new Date(msg.created_at), "MMM d, h:mm a")}
+                        </span>
+                        {showSmsStatus && (
+                          <SmsStatusBadge 
+                            status={meta?.status} 
+                            errorCode={meta?.error_code} 
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
             <div ref={messagesEndRef} />
           </div>
