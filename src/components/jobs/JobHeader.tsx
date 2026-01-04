@@ -26,7 +26,7 @@ interface JobHeaderProps {
     city: string | null;
     state: string | null;
     job_type: { id: string; name: string; color: string | null } | null;
-    created_by_profile: { full_name: string | null } | null;
+    created_by?: string | null;
     tags: Array<{ tag: { id: string; name: string; color: string | null } }>;
   };
   onUpdate: () => void;
@@ -162,8 +162,8 @@ export function JobHeader({ job, onUpdate }: JobHeaderProps) {
             <p className="font-medium">{format(new Date(job.created_at), 'dd MMM yyyy, hh:mm a')}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Created By</p>
-            <p className="font-medium">{job.created_by_profile?.full_name || 'Unknown'}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Created</p>
+            <p className="font-medium">{format(new Date(job.created_at), 'dd MMM yyyy')}</p>
           </div>
         </div>
 

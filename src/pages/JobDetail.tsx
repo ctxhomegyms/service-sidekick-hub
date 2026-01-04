@@ -46,7 +46,7 @@ interface JobData {
     zip_code: string | null;
   } | null;
   job_type: { id: string; name: string; color: string | null } | null;
-  created_by_profile: { full_name: string | null } | null;
+  created_by: string | null;
   assigned_technician: { id: string; full_name: string | null; avatar_url: string | null } | null;
   tags: Array<{ tag: { id: string; name: string; color: string | null } }>;
   line_items: Array<{ id: string; description: string; quantity: number; unit_price: number | null; sort_order: number }>;
@@ -86,11 +86,10 @@ export default function JobDetail() {
           *,
           customer:customers(*),
           job_type:job_types(*),
-          created_by_profile:profiles!jobs_created_by_fkey(full_name),
           assigned_technician:profiles!jobs_assigned_technician_id_fkey(id, full_name, avatar_url),
           tags:job_tags(tag:tags(*)),
           line_items:job_line_items(*),
-          notes:job_notes(*, author:profiles(full_name)),
+          notes:job_notes(*, author:profiles!job_notes_author_id_fkey(full_name)),
           photos:job_photos(*),
           checklist_items:job_checklist_items(*)
         `)
