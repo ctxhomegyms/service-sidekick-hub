@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, UserPlus, Loader2 } from 'lucide-react';
+import { Mail, UserPlus, Loader2, User, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,9 +22,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { normalizePhoneNumber } from '@/lib/phoneValidation';
 
 const inviteSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email'),
+  phone: z.string().min(10, 'Please enter a valid phone number'),
   role: z.enum(['manager', 'technician']),
 });
 
@@ -36,13 +39,27 @@ export function InviteUserDialog({ onInviteSent }: InviteUserDialogProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<'manager' | 'technician'>('technician');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const result = inviteSchema.safeParse({ email, role });
+    // Normalize phone number
+    const phoneResult = normalizePhoneNumber(phone);
+    if (!phoneResult.isValid) {
+      toast.error(phoneResult.error || 'Invalid phone number');
+      return;
+    }
+
+    const result = inviteSchema.safeParse({ 
+      fullName, 
+      email, 
+      phone: phoneResult.normalized, 
+      role 
+    });
     if (!result.success) {
       toast.error(result.error.errors[0].message);
       return;
@@ -58,7 +75,9 @@ export function InviteUserDialog({ onInviteSent }: InviteUserDialogProps) {
     try {
       const { data, error } = await supabase.functions.invoke('send-invitation', {
         body: {
+          fullName,
           email,
+          phone: phoneResult.normalized,
           role,
           invitedBy: user.id,
           appUrl: window.location.origin,
@@ -69,7 +88,9 @@ export function InviteUserDialog({ onInviteSent }: InviteUserDialogProps) {
       if (data?.error) throw new Error(data.error);
 
       toast.success(`Invitation sent to ${email}`);
+      setFullName('');
       setEmail('');
+      setPhone('');
       setRole('technician');
       setOpen(false);
       onInviteSent?.();
@@ -93,10 +114,25 @@ export function InviteUserDialog({ onInviteSent }: InviteUserDialogProps) {
         <DialogHeader>
           <DialogTitle>Invite a Team Member</DialogTitle>
           <DialogDescription>
-            Send an email invitation to add a new user to your organization.
+            Send an invitation to add a new user to your organization.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full Name</Label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="fullName"
+                type="text"
+                placeholder="John Smith"
+                className="pl-10"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+              />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
             <div className="relative">
@@ -113,7 +149,25 @@ export function InviteUserDialog({ onInviteSent }: InviteUserDialogProps) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
+            <Label htmlFor="phone">Mobile Number</Label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="(555) 123-4567"
+                className="pl-10"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Required for SMS notifications and dispatching.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="role">Account Type</Label>
             <Select value={role} onValueChange={(v: 'manager' | 'technician') => setRole(v)}>
               <SelectTrigger>
                 <SelectValue />
