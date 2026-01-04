@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,9 @@ import {
   Clock,
   ArrowLeft,
   Plus,
+  AlertCircle,
 } from "lucide-react";
+import { normalizePhoneNumber, formatPhoneForDisplay } from "@/lib/phoneValidation";
 
 type ConversationChannel = "phone" | "sms" | "email";
 type ConversationStatus = "unread" | "read" | "responded" | "missed" | "closed";
@@ -225,8 +227,25 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Validate phone number for SMS channel
+  const phoneValidation = useMemo(() => {
+    if (conversation?.channel !== "sms") return null;
+    if (!conversation?.customer?.phone) {
+      return { isValid: false, normalized: null, error: "Customer has no phone number" };
+    }
+    return normalizePhoneNumber(conversation.customer.phone);
+  }, [conversation?.channel, conversation?.customer?.phone]);
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !user) return;
+
+    // Validate phone for SMS before sending
+    if (conversation?.channel === "sms") {
+      if (!phoneValidation?.isValid) {
+        toast.error(phoneValidation?.error || "Invalid phone number");
+        return;
+      }
+    }
 
     setSendingMessage(true);
     try {
@@ -234,10 +253,10 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
       let smsMeta:
         | { sid?: string; status?: string; to?: string; error_code?: number | null; error_message?: string | null }
         | null = null;
-      if (conversation?.channel === "sms" && conversation?.customer?.phone) {
+      if (conversation?.channel === "sms" && phoneValidation?.normalized) {
         const { data, error: fnError } = await supabase.functions.invoke("send-sms", {
           body: {
-            to: conversation.customer.phone,
+            to: phoneValidation.normalized, // Send normalized E.164 number
             message: newMessage.trim(),
             conversationId: conversationId,
           },
@@ -588,6 +607,26 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
 
           {/* Message Input */}
           <div className="p-4 border-t">
+            {/* Phone validation warning for SMS */}
+            {conversation.channel === "sms" && phoneValidation && !phoneValidation.isValid && (
+              <div className="mb-3 flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="font-medium">Invalid phone number:</span>{" "}
+                  {phoneValidation.error}
+                  <br />
+                  <span className="text-xs text-muted-foreground">
+                    Current: {conversation.customer?.phone || "No phone"}
+                  </span>
+                </div>
+              </div>
+            )}
+            {/* Show normalized number for SMS */}
+            {conversation.channel === "sms" && phoneValidation?.isValid && (
+              <div className="mb-2 text-xs text-muted-foreground">
+                Sending to: <span className="font-mono">{formatPhoneForDisplay(phoneValidation.normalized!)}</span>
+              </div>
+            )}
             <div className="flex gap-2">
               <Textarea
                 placeholder="Type a message..."
@@ -601,7 +640,14 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
                   }
                 }}
               />
-              <Button onClick={handleSendMessage} disabled={sendingMessage || !newMessage.trim()}>
+              <Button 
+                onClick={handleSendMessage} 
+                disabled={
+                  sendingMessage || 
+                  !newMessage.trim() || 
+                  (conversation.channel === "sms" && !phoneValidation?.isValid)
+                }
+              >
                 <Send className="h-4 w-4" />
               </Button>
             </div>
