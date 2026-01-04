@@ -303,7 +303,7 @@ export default function Schedule() {
   if (isMobile) {
     return (
       <AppLayout>
-        <div className="flex flex-col h-[100dvh] overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
           {/* Mobile Header - compact */}
           <div className="shrink-0 px-4 py-3 border-b bg-background">
             <div className="flex items-center justify-between gap-2">
