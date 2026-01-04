@@ -126,7 +126,8 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
             console.error("SMS send error:", smsError);
             toast.warning("Conversation created but SMS delivery failed");
           } else if (data?.status === "failed" || data?.status === "undelivered") {
-            toast.warning(data?.error_message || "SMS delivery failed");
+            const code = data?.error_code ? ` (code ${data.error_code})` : "";
+            toast.warning((data?.error_message || "SMS delivery failed") + code);
           } else if (data?.status === "queued" || data?.status === "sending") {
             toast.success("SMS queued");
           } else {

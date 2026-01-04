@@ -231,7 +231,9 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
     setSendingMessage(true);
     try {
       // For SMS channel, send via Twilio
-      let smsMeta: { sid?: string; status?: string; to?: string; error_message?: string | null } | null = null;
+      let smsMeta:
+        | { sid?: string; status?: string; to?: string; error_code?: number | null; error_message?: string | null }
+        | null = null;
       if (conversation?.channel === "sms" && conversation?.customer?.phone) {
         const { data, error: fnError } = await supabase.functions.invoke("send-sms", {
           body: {
@@ -243,7 +245,7 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
 
         if (fnError) {
           console.error("Twilio SMS error:", fnError);
-          throw new Error(fnError.message || "Failed to send SMS via Twilio");
+          throw new Error(fnError.message || "Failed to send SMS");
         }
 
         if (data?.error) {
@@ -254,11 +256,13 @@ export default function ConversationDetail({ conversationId, onUpdate, onClose }
           sid: data?.sid,
           status: data?.status,
           to: data?.to,
+          error_code: data?.error_code ?? null,
           error_message: data?.error_message ?? null,
         };
 
         if (data?.status === "failed" || data?.status === "undelivered") {
-          throw new Error(data?.error_message || "SMS delivery failed");
+          const code = data?.error_code ? ` (code ${data.error_code})` : "";
+          throw new Error((data?.error_message || "SMS delivery failed") + code);
         }
 
         if (data?.status === "queued" || data?.status === "sending") {
