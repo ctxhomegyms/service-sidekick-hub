@@ -8,56 +8,52 @@ interface SmsStatusBadgeProps {
   errorCode?: number | null;
 }
 
-const statusConfig: Record<string, { 
-  label: string; 
-  variant: "default" | "secondary" | "destructive" | "outline"; 
+const statusConfig: Record<string, {
+  label: string;
+  variant: "default" | "secondary" | "destructive" | "outline";
   icon: React.ReactNode;
   className?: string;
 }> = {
-  queued: { 
-    label: "Queued", 
-    variant: "secondary", 
+  queued: {
+    label: "Queued",
+    variant: "secondary",
     icon: <Clock className="h-3 w-3" />,
     className: "bg-muted text-muted-foreground",
   },
-  sending: { 
-    label: "Sending", 
-    variant: "secondary", 
+  sending: {
+    label: "Sending",
+    variant: "secondary",
     icon: <Loader2 className="h-3 w-3 animate-spin" />,
     className: "bg-muted text-muted-foreground",
   },
-  sent: { 
-    label: "Sent", 
-    variant: "outline", 
+  sent: {
+    label: "Sent",
+    variant: "outline",
     icon: <Send className="h-3 w-3" />,
-    className: "bg-blue-500/10 text-blue-600 border-blue-500/30",
   },
-  delivered: { 
-    label: "Delivered", 
-    variant: "outline", 
+  delivered: {
+    label: "Delivered",
+    variant: "outline",
     icon: <CheckCheck className="h-3 w-3" />,
-    className: "bg-green-500/10 text-green-600 border-green-500/30",
   },
-  failed: { 
-    label: "Failed", 
-    variant: "destructive", 
+  failed: {
+    label: "Failed",
+    variant: "destructive",
     icon: <AlertTriangle className="h-3 w-3" />,
-    className: "",
   },
-  undelivered: { 
-    label: "Undelivered", 
-    variant: "destructive", 
+  undelivered: {
+    label: "Undelivered",
+    variant: "destructive",
     icon: <AlertTriangle className="h-3 w-3" />,
-    className: "",
   },
 };
 
 export default function SmsStatusBadge({ status, errorCode }: SmsStatusBadgeProps) {
   if (!status) return null;
 
-  const config = statusConfig[status] || { 
-    label: status, 
-    variant: "secondary" as const, 
+  const config = statusConfig[status] || {
+    label: status,
+    variant: "secondary" as const,
     icon: null,
     className: "",
   };
