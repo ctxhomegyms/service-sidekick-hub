@@ -30,6 +30,7 @@ import {
 import { useCustomerHistory } from '@/hooks/useCustomerHistory';
 import { StatusBadge } from '@/components/StatusBadge';
 import { NotificationPreferences } from '@/components/customers/NotificationPreferences';
+import { NotificationHistory } from '@/components/customers/NotificationHistory';
 import type { Database } from '@/integrations/supabase/types';
 
 type JobStatus = Database['public']['Enums']['job_status'];
@@ -196,8 +197,11 @@ export default function CustomerDetail() {
           </div>
         </div>
 
-        {/* Notification Preferences */}
-        <NotificationPreferences customerId={customer.id} />
+        {/* Notifications Section */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <NotificationPreferences customerId={customer.id} />
+          <NotificationHistory customerId={customer.id} />
+        </div>
 
         {/* Job History */}
         <div>
