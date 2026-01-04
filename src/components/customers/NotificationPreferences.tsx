@@ -18,6 +18,8 @@ interface Preferences {
   sms_job_scheduled: boolean;
   sms_technician_en_route: boolean;
   sms_job_completed: boolean;
+  sms_reminder_24h: boolean;
+  sms_reminder_1h: boolean;
 }
 
 const defaultPreferences: Preferences = {
@@ -27,6 +29,8 @@ const defaultPreferences: Preferences = {
   sms_job_scheduled: false,
   sms_technician_en_route: false,
   sms_job_completed: false,
+  sms_reminder_24h: true,
+  sms_reminder_1h: true,
 };
 
 export function NotificationPreferences({ customerId }: NotificationPreferencesProps) {
@@ -56,6 +60,8 @@ export function NotificationPreferences({ customerId }: NotificationPreferencesP
           sms_job_scheduled: data.sms_job_scheduled,
           sms_technician_en_route: data.sms_technician_en_route,
           sms_job_completed: data.sms_job_completed,
+          sms_reminder_24h: data.sms_reminder_24h ?? true,
+          sms_reminder_1h: data.sms_reminder_1h ?? true,
         });
       }
     } catch (error) {
@@ -107,6 +113,11 @@ export function NotificationPreferences({ customerId }: NotificationPreferencesP
     { key: 'job_completed', label: 'Job Completed', description: 'When the service has been completed' },
   ];
 
+  const reminderTypes = [
+    { key: 'sms_reminder_24h', label: '24-Hour Reminder', description: 'SMS reminder sent 24 hours before appointment' },
+    { key: 'sms_reminder_1h', label: '1-Hour Reminder', description: 'SMS reminder sent 1 hour before appointment' },
+  ];
+
   return (
     <Card>
       <CardHeader>
@@ -154,6 +165,37 @@ export function NotificationPreferences({ customerId }: NotificationPreferencesP
           <div className="space-y-4">
             {notificationTypes.map((type) => {
               const key = `sms_${type.key}` as keyof Preferences;
+              return (
+                <div key={key} className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor={key} className="text-sm font-medium">
+                      {type.label}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">{type.description}</p>
+                  </div>
+                  <Switch
+                    id={key}
+                    checked={preferences[key]}
+                    onCheckedChange={(checked) => updatePreference(key, checked)}
+                    disabled={isSaving}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Appointment Reminders */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <MessageSquare className="w-4 h-4 text-muted-foreground" />
+            <h4 className="font-medium">Appointment Reminders</h4>
+          </div>
+          <div className="space-y-4">
+            {reminderTypes.map((type) => {
+              const key = type.key as keyof Preferences;
               return (
                 <div key={key} className="flex items-center justify-between">
                   <div>
