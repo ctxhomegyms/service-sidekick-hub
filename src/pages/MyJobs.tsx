@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { 
   MapPin, Clock, CheckCircle2, PlayCircle, User, 
@@ -19,6 +19,7 @@ import { PhotoUpload, PhotoGallery } from '@/components/jobs/PhotoUpload';
 import { SignaturePad, SignatureDisplay } from '@/components/jobs/SignaturePad';
 import { JobNotes } from '@/components/jobs/JobNotes';
 import { LocationPermission } from '@/components/technician/LocationPermission';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { notifyTechnicianEnRoute, notifyJobCompleted } from '@/lib/notifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -89,7 +90,7 @@ export default function MyJobs() {
     if (user) fetchMyJobs();
   }, [user]);
 
-  const fetchMyJobs = async () => {
+  const fetchMyJobs = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('jobs')
@@ -120,7 +121,12 @@ export default function MyJobs() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  const handleRefresh = useCallback(async () => {
+    await fetchMyJobs();
+    toast.success('Jobs refreshed');
+  }, [fetchMyJobs]);
 
   const fetchJobDetails = async (jobId: string) => {
     const { data: checklistData } = await supabase
@@ -350,68 +356,128 @@ export default function MyJobs() {
           />
         ) : (
           /* Desktop/Tablet Layout or Mobile List */
-          <div className={cn("grid gap-4 md:gap-6", !isMobile && "lg:grid-cols-2")}>
-            {/* Jobs List */}
-            <div className="space-y-3 md:space-y-4">
-              <Tabs defaultValue="active">
-                <TabsList className="w-full grid grid-cols-3">
-                  <TabsTrigger value="active" className="text-xs md:text-sm">
-                    Active ({activeJobs.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="pending" className="text-xs md:text-sm">
-                    Pending ({pendingJobs.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="completed" className="text-xs md:text-sm">
-                    Done ({completedJobs.length})
-                  </TabsTrigger>
-                </TabsList>
+          isMobile ? (
+            <PullToRefresh onRefresh={handleRefresh} className="min-h-[60vh]">
+              <div className="space-y-3">
+                <Tabs defaultValue="active">
+                  <TabsList className="w-full grid grid-cols-3">
+                    <TabsTrigger value="active" className="text-xs">
+                      Active ({activeJobs.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="pending" className="text-xs">
+                      Pending ({pendingJobs.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="completed" className="text-xs">
+                      Done ({completedJobs.length})
+                    </TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="active" className="space-y-3 mt-4">
-                  {activeJobs.map((job) => (
-                    <MobileJobCard 
-                      key={job.id} 
-                      job={job} 
-                      isSelected={selectedJob?.id === job.id}
-                      onClick={() => handleSelectJob(job)}
-                    />
-                  ))}
-                  {activeJobs.length === 0 && (
-                    <EmptyState message="No active jobs" />
-                  )}
-                </TabsContent>
+                  <TabsContent value="active" className="space-y-2 mt-3">
+                    {activeJobs.map((job) => (
+                      <MobileJobCard 
+                        key={job.id} 
+                        job={job} 
+                        isSelected={selectedJob?.id === job.id}
+                        onClick={() => handleSelectJob(job)}
+                      />
+                    ))}
+                    {activeJobs.length === 0 && (
+                      <EmptyState message="No active jobs" />
+                    )}
+                  </TabsContent>
 
-                <TabsContent value="pending" className="space-y-3 mt-4">
-                  {pendingJobs.map((job) => (
-                    <MobileJobCard 
-                      key={job.id} 
-                      job={job} 
-                      isSelected={selectedJob?.id === job.id}
-                      onClick={() => handleSelectJob(job)}
-                    />
-                  ))}
-                  {pendingJobs.length === 0 && (
-                    <EmptyState message="No pending jobs" />
-                  )}
-                </TabsContent>
+                  <TabsContent value="pending" className="space-y-2 mt-3">
+                    {pendingJobs.map((job) => (
+                      <MobileJobCard 
+                        key={job.id} 
+                        job={job} 
+                        isSelected={selectedJob?.id === job.id}
+                        onClick={() => handleSelectJob(job)}
+                      />
+                    ))}
+                    {pendingJobs.length === 0 && (
+                      <EmptyState message="No pending jobs" />
+                    )}
+                  </TabsContent>
 
-                <TabsContent value="completed" className="space-y-3 mt-4">
-                  {completedJobs.map((job) => (
-                    <MobileJobCard 
-                      key={job.id} 
-                      job={job} 
-                      isSelected={selectedJob?.id === job.id}
-                      onClick={() => handleSelectJob(job)}
-                    />
-                  ))}
-                  {completedJobs.length === 0 && (
-                    <EmptyState message="No completed jobs" />
-                  )}
-                </TabsContent>
-              </Tabs>
-            </div>
+                  <TabsContent value="completed" className="space-y-2 mt-3">
+                    {completedJobs.map((job) => (
+                      <MobileJobCard 
+                        key={job.id} 
+                        job={job} 
+                        isSelected={selectedJob?.id === job.id}
+                        onClick={() => handleSelectJob(job)}
+                      />
+                    ))}
+                    {completedJobs.length === 0 && (
+                      <EmptyState message="No completed jobs" />
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </PullToRefresh>
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Desktop Jobs List */}
+              <div className="space-y-4">
+                <Tabs defaultValue="active">
+                  <TabsList className="w-full grid grid-cols-3">
+                    <TabsTrigger value="active" className="text-sm">
+                      Active ({activeJobs.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="pending" className="text-sm">
+                      Pending ({pendingJobs.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="completed" className="text-sm">
+                      Done ({completedJobs.length})
+                    </TabsTrigger>
+                  </TabsList>
 
-            {/* Desktop Job Details */}
-            {!isMobile && (
+                  <TabsContent value="active" className="space-y-3 mt-4">
+                    {activeJobs.map((job) => (
+                      <MobileJobCard 
+                        key={job.id} 
+                        job={job} 
+                        isSelected={selectedJob?.id === job.id}
+                        onClick={() => handleSelectJob(job)}
+                      />
+                    ))}
+                    {activeJobs.length === 0 && (
+                      <EmptyState message="No active jobs" />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="pending" className="space-y-3 mt-4">
+                    {pendingJobs.map((job) => (
+                      <MobileJobCard 
+                        key={job.id} 
+                        job={job} 
+                        isSelected={selectedJob?.id === job.id}
+                        onClick={() => handleSelectJob(job)}
+                      />
+                    ))}
+                    {pendingJobs.length === 0 && (
+                      <EmptyState message="No pending jobs" />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="completed" className="space-y-3 mt-4">
+                    {completedJobs.map((job) => (
+                      <MobileJobCard 
+                        key={job.id} 
+                        job={job} 
+                        isSelected={selectedJob?.id === job.id}
+                        onClick={() => handleSelectJob(job)}
+                      />
+                    ))}
+                    {completedJobs.length === 0 && (
+                      <EmptyState message="No completed jobs" />
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </div>
+
+              {/* Desktop Job Details */}
               <div>
                 {selectedJob ? (
                   <DesktopJobDetail
@@ -441,8 +507,8 @@ export default function MyJobs() {
                   </Card>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )
         )}
 
         {/* Signature Pad Dialog */}
