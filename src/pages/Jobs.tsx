@@ -4,6 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { JobCard } from '@/components/jobs/JobCard';
 import { JobCreateDialog } from '@/components/jobs/JobCreateDialog';
+import { JobsViewToggle, JobsView } from '@/components/jobs/JobsViewToggle';
+import { JobsTableView } from '@/components/jobs/JobsTableView';
+import { JobsKanbanView } from '@/components/jobs/JobsKanbanView';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -33,6 +36,7 @@ export default function Jobs() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [view, setView] = useState<JobsView>('grid');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -101,35 +105,44 @@ export default function Jobs() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="scheduled">Scheduled</SelectItem>
-              <SelectItem value="en_route">En Route</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="en_route">En Route</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+            <JobsViewToggle view={view} onViewChange={setView} />
+          </div>
         </div>
 
-        {/* Jobs Grid */}
+        {/* Jobs Content */}
         {filteredJobs.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredJobs.map((job) => (
-              <JobCard key={job.id} job={job} />
-            ))}
-          </div>
+          <>
+            {view === 'grid' && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredJobs.map((job) => (
+                  <JobCard key={job.id} job={job} />
+                ))}
+              </div>
+            )}
+            {view === 'table' && <JobsTableView jobs={filteredJobs} />}
+            {view === 'kanban' && <JobsKanbanView jobs={filteredJobs} />}
+          </>
         ) : (
           <div className="text-center py-12">
             <p className="text-muted-foreground">
-              {searchQuery || statusFilter !== 'all' 
-                ? 'No jobs match your filters' 
+              {searchQuery || statusFilter !== 'all'
+                ? 'No jobs match your filters'
                 : 'No jobs yet. Create your first job!'}
             </p>
           </div>
