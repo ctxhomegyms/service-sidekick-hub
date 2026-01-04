@@ -9,6 +9,15 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* Eurostile Extended Black - Header Font */
+@font-face {
+  font-family: 'Eurostile Extended';
+  src: url('/fonts/EurostileExt-Bla.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     /* Core Colors - Professional Navy Theme */
@@ -138,6 +147,13 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Eurostile Extended', system-ui, sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
 }
 
