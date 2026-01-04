@@ -21,6 +21,7 @@ export const useTechnicianLocations = () => {
 
   useEffect(() => {
     const fetchLocations = async () => {
+      // Fetch all technicians who are actively sharing their location
       const { data, error } = await supabase
         .from('technician_locations')
         .select(`
@@ -30,7 +31,8 @@ export const useTechnicianLocations = () => {
             email
           )
         `)
-        .eq('is_on_shift', true);
+        .eq('is_on_shift', true)
+        .gt('latitude', 0); // Only include valid locations
 
       if (error) {
         console.error('Error fetching locations:', error);
