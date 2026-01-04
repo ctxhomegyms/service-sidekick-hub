@@ -90,6 +90,170 @@ export type Database = {
           },
         ]
       }
+      conversation_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          direction: Database["public"]["Enums"]["message_direction"]
+          id: string
+          metadata: Json | null
+          sender_contact: string | null
+          sender_name: string | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          direction: Database["public"]["Enums"]["message_direction"]
+          id?: string
+          metadata?: Json | null
+          sender_contact?: string | null
+          sender_name?: string | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          direction?: Database["public"]["Enums"]["message_direction"]
+          id?: string
+          metadata?: Json | null
+          sender_contact?: string | null
+          sender_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_notes: {
+        Row: {
+          author_id: string
+          conversation_id: string
+          created_at: string
+          id: string
+          note_text: string
+        }
+        Insert: {
+          author_id: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          note_text: string
+        }
+        Update: {
+          author_id?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          note_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_notes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_notes_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_tags: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          tag_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          tag_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_tags_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          assigned_to: string | null
+          channel: Database["public"]["Enums"]["communication_channel"]
+          created_at: string
+          customer_id: string | null
+          id: string
+          last_message_at: string | null
+          status: Database["public"]["Enums"]["conversation_status"]
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          channel: Database["public"]["Enums"]["communication_channel"]
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          last_message_at?: string | null
+          status?: Database["public"]["Enums"]["conversation_status"]
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          channel?: Database["public"]["Enums"]["communication_channel"]
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          last_message_at?: string | null
+          status?: Database["public"]["Enums"]["conversation_status"]
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_field_definitions: {
         Row: {
           created_at: string
@@ -994,6 +1158,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "dispatcher" | "technician" | "assistant"
+      communication_channel: "phone" | "sms" | "email"
+      conversation_status: "unread" | "read" | "responded" | "missed" | "closed"
       job_priority: "low" | "medium" | "high" | "urgent"
       job_status:
         | "pending"
@@ -1002,6 +1168,7 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "cancelled"
+      message_direction: "inbound" | "outbound"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1130,6 +1297,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "dispatcher", "technician", "assistant"],
+      communication_channel: ["phone", "sms", "email"],
+      conversation_status: ["unread", "read", "responded", "missed", "closed"],
       job_priority: ["low", "medium", "high", "urgent"],
       job_status: [
         "pending",
@@ -1139,6 +1308,7 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      message_direction: ["inbound", "outbound"],
     },
   },
 } as const

@@ -9,7 +9,8 @@ import {
   Wrench,
   LayoutGrid,
   MapPin,
-  ClipboardCheck
+  ClipboardCheck,
+  Inbox
 } from 'lucide-react';
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,6 +36,7 @@ const adminItems = [
   { title: 'Live Map', url: '/map', icon: MapPin },
   { title: 'Jobs', url: '/jobs', icon: Briefcase },
   { title: 'Schedule', url: '/schedule', icon: Calendar },
+  { title: 'Inbox', url: '/inbox', icon: Inbox },
   { title: 'Customers', url: '/customers', icon: Users },
   { title: 'Technicians', url: '/technicians', icon: Wrench },
 ];

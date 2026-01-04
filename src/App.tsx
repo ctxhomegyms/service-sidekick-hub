@@ -17,6 +17,7 @@ import MyJobs from "./pages/MyJobs";
 import Settings from "./pages/Settings";
 import Map from "./pages/Map";
 import ChecklistTemplates from "./pages/ChecklistTemplates";
+import Inbox from "./pages/Inbox";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ function AppRoutes() {
       <Route path="/my-jobs" element={<ProtectedRoute><MyJobs /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/checklist-templates" element={<ProtectedRoute><ChecklistTemplates /></ProtectedRoute>} />
+      <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
