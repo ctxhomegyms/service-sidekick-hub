@@ -85,7 +85,7 @@ export default {
       },
       fontFamily: {
         'heading': ['"Eurostile Extended"', 'system-ui', 'sans-serif'],
-        'display': ['"Exo 2"', 'system-ui', 'sans-serif'],
+        'display': ['Inter', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",
