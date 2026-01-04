@@ -54,7 +54,7 @@ serve(async (req) => {
 
   try {
     const shopifyAccessToken = Deno.env.get('SHOPIFY_ACCESS_TOKEN');
-    const shopifyStoreDomain = Deno.env.get('SHOPIFY_STORE_DOMAIN');
+    let shopifyStoreDomain = Deno.env.get('SHOPIFY_STORE_DOMAIN');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -66,6 +66,22 @@ serve(async (req) => {
       throw new Error('Missing Supabase credentials');
     }
 
+    // Normalize the store domain - handle various input formats
+    // If it's an admin URL like https://admin.shopify.com/store/ctx-home-fitness
+    // Extract just the store name and convert to myshopify.com format
+    if (shopifyStoreDomain.includes('admin.shopify.com/store/')) {
+      const match = shopifyStoreDomain.match(/admin\.shopify\.com\/store\/([^\/]+)/);
+      if (match) {
+        shopifyStoreDomain = `${match[1]}.myshopify.com`;
+      }
+    }
+    
+    // Remove any protocol prefix
+    shopifyStoreDomain = shopifyStoreDomain.replace(/^https?:\/\//, '');
+    
+    // Remove trailing slashes
+    shopifyStoreDomain = shopifyStoreDomain.replace(/\/+$/, '');
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log('Starting Shopify order sync...');
@@ -74,6 +90,8 @@ serve(async (req) => {
     // Fetch orders with LD tag from Shopify
     // Using the Admin API to get orders
     const shopifyApiUrl = `https://${shopifyStoreDomain}/admin/api/2024-01/orders.json?status=any&limit=50`;
+    
+    console.log(`Fetching from: ${shopifyApiUrl}`);
     
     const shopifyResponse = await fetch(shopifyApiUrl, {
       headers: {
