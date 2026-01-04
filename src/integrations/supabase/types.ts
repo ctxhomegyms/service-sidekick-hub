@@ -159,6 +159,51 @@ export type Database = {
         }
         Relationships: []
       }
+      job_activities: {
+        Row: {
+          activity_type: string
+          created_at: string
+          description: string
+          id: string
+          job_id: string
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          description: string
+          id?: string
+          job_id: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          description?: string
+          id?: string
+          job_id?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_activities_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_activities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_checklist_items: {
         Row: {
           completed_at: string | null
@@ -936,6 +981,16 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_dispatcher: { Args: { _user_id: string }; Returns: boolean }
+      log_job_activity: {
+        Args: {
+          _activity_type: string
+          _description: string
+          _job_id: string
+          _metadata?: Json
+          _user_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "dispatcher" | "technician" | "assistant"
