@@ -80,9 +80,9 @@ export default function MyJobs() {
   const [isLoading, setIsLoading] = useState(true);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    photos: true,
-    notes: true,
-    checklist: true,
+    photos: false,
+    notes: false,
+    checklist: true, // Keep checklist open as it's most important
   });
 
   useEffect(() => {
@@ -308,13 +308,13 @@ export default function MyJobs() {
 
   return (
     <AppLayout>
-      <div className="space-y-4 md:space-y-6">
+      <div className="space-y-3 md:space-y-6">
         {/* Header - hide on mobile when viewing detail */}
         {!showMobileDetail && (
           <>
             <div className="px-1">
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Jobs</h1>
-              <p className="text-sm md:text-base text-muted-foreground">Your assigned jobs</p>
+              <h1 className="text-xl md:text-3xl font-bold tracking-tight">My Jobs</h1>
+              <p className="text-xs md:text-base text-muted-foreground">Your assigned jobs</p>
             </div>
             
             {/* Location Permission Banner */}
@@ -468,7 +468,7 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
-// Mobile-optimized job card
+// Mobile-optimized job card - compact for list view
 function MobileJobCard({ 
   job, 
   isSelected, 
@@ -479,52 +479,39 @@ function MobileJobCard({
   onClick: () => void;
 }) {
   const statusColors: Record<string, string> = {
-    scheduled: 'border-l-blue-500',
-    en_route: 'border-l-amber-500',
-    in_progress: 'border-l-green-500',
-    completed: 'border-l-gray-400',
-    pending: 'border-l-gray-300',
+    scheduled: 'border-l-info',
+    en_route: 'border-l-warning',
+    in_progress: 'border-l-success',
+    completed: 'border-l-muted-foreground',
+    pending: 'border-l-muted',
   };
 
   return (
     <Card 
       className={cn(
         "cursor-pointer transition-all border-l-4 active:scale-[0.98]",
-        statusColors[job.status] || 'border-l-gray-300',
+        statusColors[job.status] || 'border-l-muted',
         isSelected ? "ring-2 ring-primary" : "hover:shadow-md"
       )}
       onClick={onClick}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1 space-y-1">
-            <h3 className="font-semibold truncate">{job.title}</h3>
-            {job.customer && (
-              <p className="text-sm text-muted-foreground truncate">
-                {job.customer.name}
-              </p>
-            )}
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              {job.scheduled_date && (
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {format(new Date(job.scheduled_date), 'MMM d')}
-                  {job.scheduled_time && ` · ${job.scheduled_time.slice(0, 5)}`}
-                </span>
-              )}
-            </div>
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold truncate leading-tight">{job.title}</h3>
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              {job.customer?.name}
+              {job.scheduled_time && ` · ${job.scheduled_time.slice(0, 5)}`}
+            </p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <StatusBadge status={job.status} />
-            <PriorityBadge priority={job.priority} />
-          </div>
+          <StatusBadge status={job.status} />
         </div>
       </CardContent>
     </Card>
   );
 }
 
-// Mobile full-screen job detail
+// Mobile full-screen job detail - optimized for single-screen view
 function MobileJobDetail({
   job,
   checklist,
@@ -574,30 +561,32 @@ function MobileJobDetail({
 }) {
   const { user } = useAuth();
   const address = getFullAddress(job);
+  const completedCount = checklist.filter(i => i.is_completed).length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col no-overscroll safe-area-pt">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b px-4 py-3 flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 h-10 w-10">
+    <div className="fixed inset-0 z-50 bg-background flex flex-col no-overscroll">
+      {/* Compact Header */}
+      <div className="bg-background border-b px-3 py-2 flex items-center gap-2 shrink-0">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="font-semibold truncate">{job.title}</h1>
-          {job.customer && (
-            <p className="text-sm text-muted-foreground truncate">{job.customer.name}</p>
-          )}
+          <h1 className="text-base font-semibold truncate leading-tight">{job.title}</h1>
+          <p className="text-xs text-muted-foreground truncate">
+            {job.customer?.name}
+            {job.scheduled_time && ` · ${job.scheduled_time.slice(0, 5)}`}
+          </p>
         </div>
         <StatusBadge status={job.status} />
       </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto pb-28">
-        <div className="p-4 space-y-4">
-          {/* Quick Actions */}
+      {/* Main Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-3 space-y-3">
+          {/* Quick Actions Row */}
           <div className="flex gap-2">
             {job.customer?.phone && (
-              <Button variant="outline" size="sm" className="flex-1 gap-2" asChild>
+              <Button variant="outline" size="sm" className="flex-1 h-10 gap-1.5 text-sm" asChild>
                 <a href={`tel:${job.customer.phone}`}>
                   <Phone className="w-4 h-4" />
                   Call
@@ -605,213 +594,165 @@ function MobileJobDetail({
               </Button>
             )}
             {address && (
-              <Button variant="outline" size="sm" className="flex-1 gap-2" onClick={() => openDirections(job)}>
+              <Button variant="outline" size="sm" className="flex-1 h-10 gap-1.5 text-sm" onClick={() => openDirections(job)}>
                 <Navigation className="w-4 h-4" />
                 Directions
               </Button>
             )}
           </div>
 
-          {/* Schedule & Location */}
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              {job.scheduled_date && (
-                <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm">
-                    {format(new Date(job.scheduled_date), 'EEEE, MMMM d')}
-                    {job.scheduled_time && ` at ${job.scheduled_time.slice(0, 5)}`}
-                  </span>
-                </div>
-              )}
-              {address && (
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm">{address}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Info Row - Compact */}
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+            {job.scheduled_date && (
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span>{format(new Date(job.scheduled_date), 'EEE, MMM d')}</span>
+                {job.scheduled_time && <span className="text-muted-foreground">@ {job.scheduled_time.slice(0, 5)}</span>}
+              </div>
+            )}
+            {address && (
+              <div className="flex items-center gap-2 text-sm">
+                <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="truncate">{address}</span>
+              </div>
+            )}
+            {job.status === 'in_progress' && job.started_at && (
+              <div className="flex items-center gap-2 text-sm">
+                <PlayCircle className="w-4 h-4 text-primary shrink-0" />
+                <span className="font-medium text-primary">{getElapsedTime(job.started_at)} elapsed</span>
+              </div>
+            )}
+          </div>
 
-          {/* Description */}
+          {/* Description - Collapsed by default */}
           {job.description && (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="text-sm font-medium mb-2">Description</h3>
-                <p className="text-sm text-muted-foreground">{job.description}</p>
-              </CardContent>
-            </Card>
+            <div className="bg-card border rounded-lg p-3">
+              <p className="text-sm text-muted-foreground line-clamp-2">{job.description}</p>
+            </div>
           )}
 
-          {/* Time Tracking */}
-          {(job.status === 'in_progress' || job.status === 'completed') && (
-            <Card>
-              <CardContent className="p-4 space-y-2">
-                <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time Tracking</h4>
-                {job.status === 'in_progress' && job.started_at && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Elapsed Time</span>
-                    <span className="font-mono text-sm font-medium text-primary">
-                      {getElapsedTime(job.started_at)}
-                    </span>
-                  </div>
-                )}
-                {job.estimated_duration_minutes && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Estimated</span>
-                    <span className="text-sm">{formatDurationMinutes(job.estimated_duration_minutes)}</span>
-                  </div>
-                )}
-                {job.status === 'completed' && job.actual_duration_minutes && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Actual</span>
-                      <span className="font-medium text-sm">{formatDurationMinutes(job.actual_duration_minutes)}</span>
-                    </div>
-                    {job.estimated_duration_minutes && (
-                      <div className="flex items-center justify-between border-t pt-2">
-                        <span className="text-sm">Variance</span>
-                        <span className={cn(
-                          "font-medium text-sm",
-                          job.actual_duration_minutes <= job.estimated_duration_minutes 
-                            ? "text-green-600" 
-                            : "text-red-600"
-                        )}>
-                          {job.actual_duration_minutes <= job.estimated_duration_minutes ? '−' : '+'}
-                          {formatDurationMinutes(Math.abs(job.actual_duration_minutes - job.estimated_duration_minutes))}
-                        </span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Photos */}
-          <Collapsible open={expandedSections.photos}>
-            <Card>
-              <CollapsibleTrigger 
-                className="w-full p-4 flex items-center justify-between"
-                onClick={() => onToggleSection('photos')}
-              >
-                <div className="flex items-center gap-2">
-                  <Camera className="w-4 h-4" />
-                  <span className="font-medium">Photos</span>
-                  <span className="text-xs text-muted-foreground">({photos.length})</span>
-                </div>
-                {expandedSections.photos ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0 pb-4">
-                  {job.status !== 'completed' && (
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                      <PhotoUpload jobId={job.id} photoType="before" onUploadComplete={onPhotoUploadComplete} />
-                      <PhotoUpload jobId={job.id} photoType="during" onUploadComplete={onPhotoUploadComplete} />
-                      <PhotoUpload jobId={job.id} photoType="after" onUploadComplete={onPhotoUploadComplete} />
-                    </div>
-                  )}
-                  <PhotoGallery jobId={job.id} photos={photos} />
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-
-          {/* Checklist */}
+          {/* Checklist - Inline compact */}
           {checklist.length > 0 && (
-            <Collapsible open={expandedSections.checklist}>
-              <Card>
-                <CollapsibleTrigger 
-                  className="w-full p-4 flex items-center justify-between"
-                  onClick={() => onToggleSection('checklist')}
-                >
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span className="font-medium">Checklist</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({checklist.filter(i => i.is_completed).length}/{checklist.length})
-                    </span>
-                  </div>
-                  {expandedSections.checklist ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="pt-0 pb-4 space-y-3">
-                    {checklist.map((item) => (
-                      <div key={item.id} className="flex items-center gap-4 min-h-[44px]">
-                        <Checkbox
-                          id={item.id}
-                          checked={item.is_completed}
-                          onCheckedChange={(checked) => onToggleChecklistItem(item.id, checked as boolean)}
-                          disabled={job.status === 'completed'}
-                          className="w-6 h-6"
-                        />
-                        <label 
-                          htmlFor={item.id}
-                          className={cn(
-                            "text-sm flex-1",
-                            item.is_completed && "line-through text-muted-foreground"
-                          )}
-                        >
-                          {item.item_text}
-                        </label>
-                      </div>
-                    ))}
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          )}
-
-          {/* Notes */}
-          <Collapsible open={expandedSections.notes}>
-            <Card>
-              <CollapsibleTrigger 
-                className="w-full p-4 flex items-center justify-between"
-                onClick={() => onToggleSection('notes')}
+            <div className="bg-card border rounded-lg">
+              <button 
+                className="w-full p-3 flex items-center justify-between text-left"
+                onClick={() => onToggleSection('checklist')}
               >
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" />
-                  <span className="font-medium">Notes</span>
-                  <span className="text-xs text-muted-foreground">({notes.length})</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="text-sm font-medium">Checklist</span>
                 </div>
-                {expandedSections.notes ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0 pb-4">
-                  <JobNotes 
-                    jobId={job.id} 
-                    notes={notes}
-                    onNoteAdded={onNoteAdded}
-                    readOnly={job.status === 'completed'}
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                    {completedCount}/{checklist.length}
+                  </span>
+                  {expandedSections.checklist ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
+              {expandedSections.checklist && (
+                <div className="px-3 pb-3 space-y-2 border-t pt-2">
+                  {checklist.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 min-h-[40px]">
+                      <Checkbox
+                        id={item.id}
+                        checked={item.is_completed}
+                        onCheckedChange={(checked) => onToggleChecklistItem(item.id, checked as boolean)}
+                        disabled={job.status === 'completed'}
+                        className="w-5 h-5"
+                      />
+                      <label 
+                        htmlFor={item.id}
+                        className={cn(
+                          "text-sm flex-1",
+                          item.is_completed && "line-through text-muted-foreground"
+                        )}
+                      >
+                        {item.item_text}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Signature */}
+          {/* Photos Section - Compact */}
+          <div className="bg-card border rounded-lg">
+            <button 
+              className="w-full p-3 flex items-center justify-between text-left"
+              onClick={() => onToggleSection('photos')}
+            >
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4" />
+                <span className="text-sm font-medium">Photos</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{photos.length}</span>
+                {expandedSections.photos ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </div>
+            </button>
+            {expandedSections.photos && (
+              <div className="px-3 pb-3 border-t pt-2">
+                {job.status !== 'completed' && (
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    <PhotoUpload jobId={job.id} photoType="before" onUploadComplete={onPhotoUploadComplete} />
+                    <PhotoUpload jobId={job.id} photoType="during" onUploadComplete={onPhotoUploadComplete} />
+                    <PhotoUpload jobId={job.id} photoType="after" onUploadComplete={onPhotoUploadComplete} />
+                  </div>
+                )}
+                {photos.length > 0 && <PhotoGallery jobId={job.id} photos={photos} />}
+              </div>
+            )}
+          </div>
+
+          {/* Notes Section - Compact */}
+          <div className="bg-card border rounded-lg">
+            <button 
+              className="w-full p-3 flex items-center justify-between text-left"
+              onClick={() => onToggleSection('notes')}
+            >
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                <span className="text-sm font-medium">Notes</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{notes.length}</span>
+                {expandedSections.notes ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </div>
+            </button>
+            {expandedSections.notes && (
+              <div className="px-3 pb-3 border-t pt-2">
+                <JobNotes 
+                  jobId={job.id} 
+                  notes={notes}
+                  onNoteAdded={onNoteAdded}
+                  readOnly={job.status === 'completed'}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Signature - Inline */}
           {signature ? (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-medium mb-3 flex items-center gap-2">
-                  <Pen className="w-4 h-4" />
-                  Customer Signature
-                </h3>
-                <SignatureDisplay signature={signature} />
-              </CardContent>
-            </Card>
+            <div className="bg-card border rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Pen className="w-4 h-4" />
+                <span className="text-sm font-medium">Signature</span>
+              </div>
+              <SignatureDisplay signature={signature} />
+            </div>
           ) : job.status === 'in_progress' && (
-            <Button variant="outline" className="w-full gap-2" onClick={onOpenSignaturePad}>
+            <Button variant="outline" size="sm" className="w-full h-10 gap-2 text-sm" onClick={onOpenSignaturePad}>
               <Pen className="w-4 h-4" />
-              Get Customer Signature
+              Get Signature
             </Button>
           )}
         </div>
       </div>
 
-      {/* Fixed Bottom Action Bar */}
+      {/* Fixed Bottom Action */}
       {job.status !== 'completed' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 safe-area-inset-bottom">
+        <div className="shrink-0 bg-background border-t p-3 safe-area-inset-bottom">
           {job.status === 'scheduled' && (
             <Button className="w-full h-12 text-base gap-2 active:scale-[0.98]" onClick={() => onEnRoute(job.id)}>
               <MapPin className="w-5 h-5" />
