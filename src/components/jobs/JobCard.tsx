@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { MapPin, Clock, User, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
@@ -24,9 +25,19 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onClick, className }: JobCardProps) {
+  const navigate = useNavigate();
+  
   const getInitials = (name: string | null) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      navigate(`/jobs/${job.id}`);
+    }
   };
 
   return (
@@ -36,7 +47,7 @@ export function JobCard({ job, onClick, className }: JobCardProps) {
         "animate-slide-up",
         className
       )}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
