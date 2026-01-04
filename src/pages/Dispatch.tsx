@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { ChevronLeft, ChevronRight, Search, Clock, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Clock, MapPin, Users, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,8 @@ import { RouteOptimizer } from '@/components/dispatch/RouteOptimizer';
 import { notifyJobScheduled } from '@/lib/notifications';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Job {
   id: string;
@@ -40,11 +42,14 @@ interface Technician {
 }
 
 export default function Dispatch() {
+  const isMobile = useIsMobile();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [jobs, setJobs] = useState<Job[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [mobileTab, setMobileTab] = useState<'unassigned' | 'schedule'>('unassigned');
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -189,6 +194,135 @@ export default function Dispatch() {
     }
   };
 
+  // Mobile view - simplified layout without complex grid
+  if (isMobile) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col h-full">
+          {/* Mobile Header */}
+          <div className="p-4 border-b">
+            <h1 className="text-xl font-bold">Dispatch</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <Button variant="outline" size="sm" onClick={() => setSelectedDate(prev => addDays(prev, -1))}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setSelectedDate(new Date())}>
+                {format(selectedDate, 'EEE, MMM d')}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setSelectedDate(prev => addDays(prev, 1))}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile Tabs */}
+          <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as 'unassigned' | 'schedule')} className="flex-1 flex flex-col">
+            <TabsList className="mx-4 mt-2 grid grid-cols-2">
+              <TabsTrigger value="unassigned" className="gap-1">
+                <Clock className="w-4 h-4" />
+                Unassigned ({unassignedJobs.length})
+              </TabsTrigger>
+              <TabsTrigger value="schedule" className="gap-1">
+                <Calendar className="w-4 h-4" />
+                Schedule
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="unassigned" className="flex-1 m-0 p-4">
+              <Input
+                placeholder="Search jobs..."
+                className="mb-3"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <ScrollArea className="h-[calc(100vh-280px)]">
+                <div className="space-y-2">
+                  {unassignedJobs.map((job) => (
+                    <Card key={job.id} className="p-3">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="font-medium text-sm truncate">{job.title}</h4>
+                        <PriorityBadge priority={job.priority} />
+                      </div>
+                      {job.customer && (
+                        <p className="text-xs text-muted-foreground truncate mb-1">
+                          {job.customer.name}
+                        </p>
+                      )}
+                      {job.city && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin className="w-3 h-3" />
+                          {job.city}
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                  {unassignedJobs.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8 text-sm">
+                      No unassigned jobs
+                    </p>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="schedule" className="flex-1 m-0 p-4">
+              <ScrollArea className="h-[calc(100vh-280px)]">
+                <div className="space-y-4">
+                  {technicians.map((tech) => {
+                    const dayJobs = getJobsForSlot(tech.id, selectedDate);
+                    return (
+                      <Card key={tech.id}>
+                        <CardHeader className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={tech.avatar_url || undefined} />
+                              <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+                                {getInitials(tech.full_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{tech.full_name || 'Unknown'}</p>
+                              <p className="text-xs text-muted-foreground">{dayJobs.length} jobs</p>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        {dayJobs.length > 0 && (
+                          <CardContent className="pt-0 pb-3 px-4">
+                            <div className="space-y-2">
+                              {dayJobs.map((job) => (
+                                <div key={job.id} className="p-2 bg-muted rounded text-xs">
+                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                    <span className="font-medium truncate">{job.title}</span>
+                                    <StatusBadge status={job.status} className="text-[10px] px-1 py-0" />
+                                  </div>
+                                  {job.scheduled_time && (
+                                    <span className="text-muted-foreground">
+                                      {job.scheduled_time.slice(0, 5)}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })}
+                  {technicians.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">
+                      No technicians available
+                    </p>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Desktop view - full drag and drop grid
   return (
     <AppLayout>
       <div className="h-[calc(100vh-2rem)] flex flex-col">
