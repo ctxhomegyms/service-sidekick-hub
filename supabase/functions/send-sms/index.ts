@@ -72,9 +72,9 @@ serve(async (req) => {
     if (!twilioResponse.ok) {
       console.error("Twilio error:", twilioData);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: twilioData.message || "Failed to send SMS",
-          code: twilioData.code 
+          code: twilioData.code,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -82,12 +82,48 @@ serve(async (req) => {
 
     console.log("SMS sent successfully:", twilioData.sid);
 
+    // Best-effort: poll status briefly to catch immediate failures (e.g. invalid/blocked numbers)
+    let finalData = twilioData;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    try {
+      if (twilioData?.sid) {
+        const messageUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages/${twilioData.sid}.json`;
+
+        for (let i = 0; i < 3; i++) {
+          // Wait a bit before checking
+          await sleep(900);
+
+          const statusRes = await fetch(messageUrl, {
+            method: "GET",
+            headers: {
+              "Authorization": "Basic " + btoa(`${accountSid}:${authToken}`),
+            },
+          });
+
+          if (!statusRes.ok) break;
+
+          const statusData = await statusRes.json();
+          finalData = statusData;
+
+          // Stop polling once it leaves queued/sending
+          if (statusData?.status && !["queued", "sending"].includes(statusData.status)) {
+            break;
+          }
+        }
+      }
+    } catch (pollErr) {
+      console.warn("Unable to poll Twilio status:", pollErr);
+    }
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        sid: twilioData.sid,
-        status: twilioData.status,
-        to: twilioData.to 
+      JSON.stringify({
+        success: true,
+        sid: finalData.sid,
+        status: finalData.status,
+        to: finalData.to,
+        error_code: finalData.error_code ?? null,
+        error_message: finalData.error_message ?? null,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

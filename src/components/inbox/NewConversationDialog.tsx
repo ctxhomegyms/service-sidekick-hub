@@ -114,7 +114,7 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
 
         // Send via appropriate channel
         if (channel === "sms" && selectedCustomer?.phone) {
-          const { error: smsError } = await supabase.functions.invoke("send-sms", {
+          const { data, error: smsError } = await supabase.functions.invoke("send-sms", {
             body: {
               to: selectedCustomer.phone,
               message: initialMessage.trim(),
@@ -125,8 +125,12 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
           if (smsError) {
             console.error("SMS send error:", smsError);
             toast.warning("Conversation created but SMS delivery failed");
+          } else if (data?.status === "failed" || data?.status === "undelivered") {
+            toast.warning(data?.error_message || "SMS delivery failed");
+          } else if (data?.status === "queued" || data?.status === "sending") {
+            toast.success("SMS queued");
           } else {
-            toast.success("SMS sent successfully");
+            toast.success("SMS sent");
           }
         }
 
