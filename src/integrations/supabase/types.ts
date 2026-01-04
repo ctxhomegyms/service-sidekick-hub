@@ -291,6 +291,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          shopify_customer_id: string | null
           state: string | null
           updated_at: string
           zip_code: string | null
@@ -304,6 +305,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          shopify_customer_id?: string | null
           state?: string | null
           updated_at?: string
           zip_code?: string | null
@@ -317,6 +319,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          shopify_customer_id?: string | null
           state?: string | null
           updated_at?: string
           zip_code?: string | null
@@ -1007,6 +1010,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      shopify_orders: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string | null
+          order_data: Json | null
+          shopify_order_id: string
+          shopify_order_number: string
+          synced_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          order_data?: Json | null
+          shopify_order_id: string
+          shopify_order_number: string
+          synced_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          order_data?: Json | null
+          shopify_order_id?: string
+          shopify_order_number?: string
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_orders_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       skills: {
         Row: {
