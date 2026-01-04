@@ -1151,7 +1151,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin_or_dispatcher: { Args: { _user_id: string }; Returns: boolean }
+      is_admin_or_manager: { Args: { _user_id: string }; Returns: boolean }
       log_job_activity: {
         Args: {
           _activity_type: string
@@ -1164,7 +1164,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "dispatcher" | "technician" | "assistant"
+      app_role: "admin" | "manager" | "technician"
       communication_channel: "phone" | "sms" | "email"
       conversation_status: "unread" | "read" | "responded" | "missed" | "closed"
       job_priority: "low" | "medium" | "high" | "urgent"
@@ -1303,7 +1303,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "dispatcher", "technician", "assistant"],
+      app_role: ["admin", "manager", "technician"],
       communication_channel: ["phone", "sms", "email"],
       conversation_status: ["unread", "read", "responded", "missed", "closed"],
       job_priority: ["low", "medium", "high", "urgent"],

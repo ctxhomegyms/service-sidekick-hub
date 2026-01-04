@@ -15,6 +15,7 @@ import Technicians from "./pages/Technicians";
 import Schedule from "./pages/Schedule";
 import MyJobs from "./pages/MyJobs";
 import Settings from "./pages/Settings";
+import Users from "./pages/Users";
 import Map from "./pages/Map";
 import ChecklistTemplates from "./pages/ChecklistTemplates";
 import Inbox from "./pages/Inbox";
@@ -56,6 +57,7 @@ function AppRoutes() {
       <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
       <Route path="/my-jobs" element={<ProtectedRoute><MyJobs /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
       <Route path="/checklist-templates" element={<ProtectedRoute><ChecklistTemplates /></ProtectedRoute>} />
       <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
