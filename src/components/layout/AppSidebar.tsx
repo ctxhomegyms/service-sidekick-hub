@@ -10,7 +10,8 @@ import {
   LayoutGrid,
   MapPin,
   ClipboardCheck,
-  Inbox
+  Inbox,
+  Shield
 } from 'lucide-react';
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,9 +48,9 @@ const technicianItems = [
 ];
 
 export function AppSidebar() {
-  const { profile, isAdmin, isDispatcher, signOut } = useAuth();
+  const { profile, isAdmin, isManager, signOut } = useAuth();
   
-  const items = isAdmin || isDispatcher ? adminItems : technicianItems;
+  const items = isManager ? adminItems : technicianItems;
 
   const getInitials = (name: string | null) => {
     if (!name) return 'U';
@@ -98,7 +99,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {(isAdmin || isDispatcher) && (
+        {isManager && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">
               Settings
@@ -132,6 +133,33 @@ export function AppSidebar() {
                     >
                       <Settings className="w-5 h-5" />
                       <span>Settings</span>
+                    </RouterNavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">
+              Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <RouterNavLink 
+                      to="/users"
+                      className={({ isActive }) => cn(
+                        "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                        "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        isActive && "bg-sidebar-accent text-sidebar-primary font-medium"
+                      )}
+                    >
+                      <Shield className="w-5 h-5" />
+                      <span>User Management</span>
                     </RouterNavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
