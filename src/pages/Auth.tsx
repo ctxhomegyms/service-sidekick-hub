@@ -145,7 +145,7 @@ export default function Auth() {
               <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
                 <Wrench className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold">FIXAGYM Field</span>
+              <span className="text-xl font-bold">FixAGym Field</span>
             </div>
 
             {inviteError ? (
@@ -256,7 +256,7 @@ export default function Auth() {
               <Wrench className="w-6 h-6 text-accent-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">FIXAGYM Field</h1>
+              <h1 className="text-2xl font-bold">FixAGym Field</h1>
               <p className="text-sm opacity-80">Service Management</p>
             </div>
           </div>
@@ -290,7 +290,7 @@ export default function Auth() {
               <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
                 <Wrench className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold">FIXAGYM Field</span>
+              <span className="text-xl font-bold">FixAGym Field</span>
             </div>
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
             <CardDescription>Sign in to your account to continue</CardDescription>

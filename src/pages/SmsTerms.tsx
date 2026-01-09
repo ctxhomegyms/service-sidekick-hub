@@ -15,7 +15,7 @@ const SmsTerms = () => {
               <MessageSquare className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">FIXAGYM Field</h1>
+              <h1 className="text-2xl font-bold tracking-tight">FixAGym Field</h1>
               <p className="text-sm text-muted-foreground">SMS Terms & Conditions</p>
             </div>
           </div>
@@ -29,7 +29,7 @@ const SmsTerms = () => {
           <section>
             <h2 className="text-xl font-semibold mb-4">SMS Messaging Program Terms</h2>
             <p className="text-muted-foreground leading-relaxed">
-              By providing your mobile phone number and opting in to receive SMS messages from FIXAGYM Field, 
+              By providing your mobile phone number and opting in to receive SMS messages from FixAGym Field, 
               you agree to the following terms and conditions. Please read this document carefully as it 
               outlines our SMS messaging practices, your rights, and how to manage your preferences.
             </p>
@@ -47,7 +47,7 @@ const SmsTerms = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                FIXAGYM Field provides field service management software that enables businesses to communicate 
+                FixAGym Field provides field service management software that enables businesses to communicate 
                 with their customers via SMS text messages. Our SMS messaging program is designed to keep 
                 customers informed about their scheduled services, appointments, and job-related updates.
               </p>
@@ -127,7 +127,7 @@ const SmsTerms = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                By providing your mobile phone number to your service provider who uses FIXAGYM Field, 
+                By providing your mobile phone number to your service provider who uses FixAGym Field, 
                 you expressly consent to receive automated SMS text messages related to your service 
                 appointments and job-related communications.
               </p>
@@ -167,7 +167,7 @@ const SmsTerms = () => {
                 </p>
               </div>
               <p className="text-muted-foreground">
-                After opting out, you will no longer receive SMS messages from FIXAGYM Field. 
+                After opting out, you will no longer receive SMS messages from FixAGym Field. 
                 If you wish to re-subscribe, you may text <span className="font-mono bg-muted px-2 py-1 rounded">START</span> to 
                 the same number or contact your service provider directly.
               </p>
@@ -281,7 +281,7 @@ const SmsTerms = () => {
               Last Updated: {lastUpdated}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              © {new Date().getFullYear()} FIXAGYM Field. All rights reserved.
+              © {new Date().getFullYear()} FixAGym Field. All rights reserved.
             </p>
           </div>
         </div>
