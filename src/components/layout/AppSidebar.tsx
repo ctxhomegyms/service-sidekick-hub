@@ -71,7 +71,7 @@ export function AppSidebar() {
             <Wrench className="w-5 h-5 text-sidebar-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-semibold text-sidebar-foreground">FieldFlow</h1>
+            <h1 className="font-semibold text-sidebar-foreground">FIXAGYM Field</h1>
             <p className="text-xs text-sidebar-foreground/60">Service Management</p>
           </div>
         </div>
