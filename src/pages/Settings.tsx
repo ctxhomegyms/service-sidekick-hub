@@ -55,12 +55,12 @@ export default function Settings() {
 
         <Card>
           <CardHeader>
-            <CardTitle>About FieldFlow</CardTitle>
+            <CardTitle>About FIXAGYM Field</CardTitle>
             <CardDescription>Field Service Management System</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              FieldFlow helps you manage your field service operations efficiently. 
+              FIXAGYM Field helps you manage your field service operations efficiently. 
               Track jobs, schedule technicians, and keep your customers happy.
             </p>
             <p className="text-xs text-muted-foreground mt-4">
