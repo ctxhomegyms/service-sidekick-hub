@@ -19,6 +19,7 @@ import Map from "./pages/Map";
 import ChecklistTemplates from "./pages/ChecklistTemplates";
 import Inbox from "./pages/Inbox";
 import SmsTerms from "./pages/SmsTerms";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/auth" element={<Auth />} />
       <Route path="/sms-terms" element={<SmsTerms />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
