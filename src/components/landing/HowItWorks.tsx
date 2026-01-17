@@ -1,4 +1,6 @@
 import { ShoppingCart, ClipboardList, CheckCircle2, ArrowRight } from 'lucide-react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import { cn } from '@/lib/utils';
 
 const steps = [
   {
@@ -22,10 +24,20 @@ const steps = [
 ];
 
 export function HowItWorks() {
+  const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation();
+  const { ref: stepsRef, isVisible: stepsVisible } = useScrollAnimation();
+  const { ref: noteRef, isVisible: noteVisible } = useScrollAnimation();
+
   return (
     <section id="how-it-works" className="py-20 sm:py-28 bg-sidebar text-sidebar-foreground">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+        <div 
+          ref={headerRef}
+          className={cn(
+            "text-center mb-16 transition-all duration-700 ease-out",
+            headerVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          )}
+        >
           <div className="inline-block bg-sidebar-accent text-sidebar-foreground px-4 py-2 rounded-full text-sm font-medium mb-4 border border-sidebar-border">
             How It Works
           </div>
@@ -38,12 +50,25 @@ export function HowItWorks() {
         </div>
 
         <div className="max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8 relative">
+          <div ref={stepsRef} className="grid md:grid-cols-3 gap-8 relative">
             {/* Connection lines for desktop */}
-            <div className="hidden md:block absolute top-16 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
+            <div 
+              className={cn(
+                "hidden md:block absolute top-16 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-primary/50 via-primary to-primary/50 transition-all duration-1000 ease-out",
+                stepsVisible ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
+              )}
+              style={{ transitionDelay: '300ms' }}
+            />
             
             {steps.map((step, index) => (
-              <div key={index} className="relative">
+              <div 
+                key={index} 
+                className={cn(
+                  "relative transition-all duration-700 ease-out",
+                  stepsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+                )}
+                style={{ transitionDelay: `${index * 150}ms` }}
+              >
                 {/* Mobile arrow */}
                 {index < steps.length - 1 && (
                   <div className="md:hidden absolute -bottom-4 left-1/2 -translate-x-1/2 text-primary">
@@ -76,7 +101,13 @@ export function HowItWorks() {
         </div>
 
         {/* Integration note */}
-        <div className="mt-16 text-center">
+        <div 
+          ref={noteRef}
+          className={cn(
+            "mt-16 text-center transition-all duration-700 ease-out",
+            noteVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          )}
+        >
           <p className="text-sidebar-foreground/50 text-sm">
             Works with any e-commerce platform • No payment integration required • Your existing checkout stays the same
           </p>

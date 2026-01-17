@@ -5,6 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import { cn } from '@/lib/utils';
 
 const benefits = [
   'No payment processing fees',
@@ -65,13 +67,22 @@ export function PricingCTA() {
     }
   };
 
+  const { ref: leftRef, isVisible: leftVisible } = useScrollAnimation();
+  const { ref: rightRef, isVisible: rightVisible } = useScrollAnimation();
+
   return (
     <section id="pricing" className="py-20 sm:py-28 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left side - Value prop */}
-            <div>
+            <div
+              ref={leftRef}
+              className={cn(
+                "transition-all duration-700 ease-out",
+                leftVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-8"
+              )}
+            >
               <div className="inline-block bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
                 Get Started
               </div>
@@ -105,7 +116,14 @@ export function PricingCTA() {
             </div>
 
             {/* Right side - Contact form */}
-            <div className="bg-card rounded-2xl p-6 sm:p-8 border border-border shadow-lg">
+            <div 
+              ref={rightRef}
+              className={cn(
+                "bg-card rounded-2xl p-6 sm:p-8 border border-border shadow-lg transition-all duration-700 ease-out",
+                rightVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8"
+              )}
+              style={{ transitionDelay: '150ms' }}
+            >
               {isSubmitted ? (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 mx-auto rounded-full bg-success/10 flex items-center justify-center mb-6">

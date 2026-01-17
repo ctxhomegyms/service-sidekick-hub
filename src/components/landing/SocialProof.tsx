@@ -1,4 +1,6 @@
 import { Star, Quote } from 'lucide-react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import { cn } from '@/lib/utils';
 
 const testimonials = [
   {
@@ -24,11 +26,28 @@ const testimonials = [
   },
 ];
 
+const stats = [
+  { value: '500+', label: 'Jobs Monthly' },
+  { value: '98%', label: 'On-Time Delivery' },
+  { value: '4.9', label: 'Customer Rating' },
+  { value: '2hrs', label: 'Avg Response Time' },
+];
+
 export function SocialProof() {
+  const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation();
+  const { ref: cardsRef, isVisible: cardsVisible } = useScrollAnimation();
+  const { ref: statsRef, isVisible: statsVisible } = useScrollAnimation();
+
   return (
     <section className="py-20 sm:py-28 bg-muted/30">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+        <div 
+          ref={headerRef}
+          className={cn(
+            "text-center mb-16 transition-all duration-700 ease-out",
+            headerVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          )}
+        >
           <div className="inline-block bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
             Testimonials
           </div>
@@ -38,11 +57,15 @@ export function SocialProof() {
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
+        <div ref={cardsRef} className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="bg-card rounded-2xl p-6 sm:p-8 border border-border relative"
+              className={cn(
+                "bg-card rounded-2xl p-6 sm:p-8 border border-border relative transition-all duration-700 ease-out",
+                cardsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+              )}
+              style={{ transitionDelay: `${index * 100}ms` }}
             >
               {/* Quote icon */}
               <div className="absolute top-6 right-6 text-primary/10">
@@ -75,24 +98,27 @@ export function SocialProof() {
         </div>
 
         {/* Stats bar */}
-        <div className="mt-16 bg-card rounded-2xl border border-border p-8 max-w-4xl mx-auto">
+        <div 
+          ref={statsRef}
+          className={cn(
+            "mt-16 bg-card rounded-2xl border border-border p-8 max-w-4xl mx-auto transition-all duration-700 ease-out",
+            statsVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
+          )}
+        >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-3xl sm:text-4xl font-heading text-foreground">500+</div>
-              <div className="text-muted-foreground text-sm mt-1">Jobs Monthly</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl sm:text-4xl font-heading text-foreground">98%</div>
-              <div className="text-muted-foreground text-sm mt-1">On-Time Delivery</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl sm:text-4xl font-heading text-foreground">4.9</div>
-              <div className="text-muted-foreground text-sm mt-1">Customer Rating</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl sm:text-4xl font-heading text-foreground">2hrs</div>
-              <div className="text-muted-foreground text-sm mt-1">Avg Response Time</div>
-            </div>
+            {stats.map((stat, index) => (
+              <div 
+                key={index}
+                className={cn(
+                  "text-center transition-all duration-500 ease-out",
+                  statsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+                )}
+                style={{ transitionDelay: `${index * 100 + 200}ms` }}
+              >
+                <div className="text-3xl sm:text-4xl font-heading text-foreground">{stat.value}</div>
+                <div className="text-muted-foreground text-sm mt-1">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
