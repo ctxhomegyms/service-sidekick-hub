@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -47,6 +48,7 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
     city: '',
     state: '',
     zip_code: '',
+    sms_consent: false,
   });
 
   useEffect(() => {
@@ -96,6 +98,8 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
         city: newCustomer.city || null,
         state: newCustomer.state || null,
         zip_code: newCustomer.zip_code || null,
+        sms_consent: newCustomer.sms_consent,
+        sms_consent_date: newCustomer.sms_consent ? new Date().toISOString() : null,
       }).select('id').single();
 
       if (error) throw error;
@@ -122,6 +126,7 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
         city: '',
         state: '',
         zip_code: '',
+        sms_consent: false,
       });
     } catch (error: any) {
       toast.error(error.message || 'Failed to create customer');
@@ -216,6 +221,28 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
                 />
               </div>
             </div>
+            
+            {/* SMS Consent Checkbox */}
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/50 p-3">
+              <Checkbox
+                id="customerSmsConsent"
+                checked={newCustomer.sms_consent}
+                onCheckedChange={(checked) => 
+                  setNewCustomer(c => ({ ...c, sms_consent: checked === true }))
+                }
+                className="mt-0.5"
+              />
+              <div className="space-y-1">
+                <Label htmlFor="customerSmsConsent" className="text-sm font-medium cursor-pointer">
+                  SMS Consent
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Customer agrees to receive SMS notifications. 
+                  See <a href="/sms-terms" target="_blank" className="underline hover:text-foreground">SMS Terms</a>.
+                </p>
+              </div>
+            </div>
+            
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
