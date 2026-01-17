@@ -13,11 +13,18 @@ const corsHeaders = {
 
 interface NotificationRequest {
   job_id: string;
-  notification_type: "job_scheduled" | "technician_en_route" | "job_completed";
+  notification_type: "job_scheduled" | "technician_en_route" | "job_completed" | "job_rescheduled" | "job_cancelled" | "technician_assigned";
+  extra_data?: {
+    previous_date?: string;
+    previous_time?: string;
+    new_date?: string;
+    new_time?: string;
+    cancellation_reason?: string;
+  };
 }
 
 // Email templates (HTML)
-const emailTemplates = {
+const emailTemplates: Record<string, { subject: string; getBody: (job: any, technician: any, extraData?: any) => string }> = {
   job_scheduled: {
     subject: "Your Service Appointment is Scheduled",
     getBody: (job: any, technician: any) => `
@@ -70,10 +77,63 @@ const emailTemplates = {
       </div>
     `,
   },
+  job_rescheduled: {
+    subject: "Your Service Appointment Has Been Rescheduled",
+    getBody: (job: any, technician: any, extraData?: any) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a1a;">📅 Appointment Rescheduled</h2>
+        <p>Hello ${job.customer?.name || "Valued Customer"},</p>
+        <p>Your service appointment has been rescheduled to a new date and time:</p>
+        <div style="background: #fff3e0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 5px 0;"><strong>Service:</strong> ${job.title}</p>
+          ${extraData?.previous_date ? `<p style="margin: 5px 0; text-decoration: line-through; color: #999;"><strong>Previous:</strong> ${extraData.previous_date} at ${extraData.previous_time || "TBD"}</p>` : ""}
+          <p style="margin: 5px 0; color: #e65100;"><strong>New Date:</strong> ${job.scheduled_date || "TBD"}</p>
+          <p style="margin: 5px 0; color: #e65100;"><strong>New Time:</strong> ${job.scheduled_time?.slice(0, 5) || "TBD"}</p>
+          ${technician ? `<p style="margin: 5px 0;"><strong>Technician:</strong> ${technician.full_name}</p>` : ""}
+          <p style="margin: 5px 0;"><strong>Address:</strong> ${[job.address, job.city].filter(Boolean).join(", ") || "On file"}</p>
+        </div>
+        <p>We apologize for any inconvenience. If the new time doesn't work for you, please contact us.</p>
+      </div>
+    `,
+  },
+  job_cancelled: {
+    subject: "Your Service Appointment Has Been Cancelled",
+    getBody: (job: any, _technician: any, extraData?: any) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a1a;">❌ Appointment Cancelled</h2>
+        <p>Hello ${job.customer?.name || "Valued Customer"},</p>
+        <p>We regret to inform you that your service appointment has been cancelled.</p>
+        <div style="background: #ffebee; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 5px 0;"><strong>Service:</strong> ${job.title}</p>
+          <p style="margin: 5px 0;"><strong>Original Date:</strong> ${job.scheduled_date || "N/A"}</p>
+          ${extraData?.cancellation_reason ? `<p style="margin: 5px 0;"><strong>Reason:</strong> ${extraData.cancellation_reason}</p>` : ""}
+        </div>
+        <p>If you'd like to reschedule, please contact us and we'll be happy to find a new time that works for you.</p>
+      </div>
+    `,
+  },
+  technician_assigned: {
+    subject: "A Technician Has Been Assigned to Your Job",
+    getBody: (job: any, technician: any) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a1a;">👷 Technician Assigned</h2>
+        <p>Hello ${job.customer?.name || "Valued Customer"},</p>
+        <p>Great news! A technician has been assigned to your upcoming service.</p>
+        <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 5px 0;"><strong>Service:</strong> ${job.title}</p>
+          ${technician ? `<p style="margin: 5px 0;"><strong>Your Technician:</strong> ${technician.full_name}</p>` : ""}
+          <p style="margin: 5px 0;"><strong>Scheduled Date:</strong> ${job.scheduled_date || "TBD"}</p>
+          <p style="margin: 5px 0;"><strong>Time:</strong> ${job.scheduled_time?.slice(0, 5) || "TBD"}</p>
+          <p style="margin: 5px 0;"><strong>Address:</strong> ${[job.address, job.city].filter(Boolean).join(", ") || "On file"}</p>
+        </div>
+        <p>We'll notify you when they're on the way on the day of service.</p>
+      </div>
+    `,
+  },
 };
 
 // SMS templates (concise text-only)
-const smsTemplates = {
+const smsTemplates: Record<string, (job: any, technician: any, extraData?: any) => string> = {
   job_scheduled: (job: any, technician: any) => 
     `Hi ${job.customer?.name || "there"}! Your service "${job.title}" is confirmed for ${job.scheduled_date || "TBD"} at ${job.scheduled_time?.slice(0, 5) || "TBD"}.${technician ? ` Tech: ${technician.full_name}.` : ""} We'll notify you when they're on the way.`,
   
@@ -82,6 +142,15 @@ const smsTemplates = {
   
   job_completed: (job: any, _technician: any) => 
     `✅ Service complete! Thank you for choosing us, ${job.customer?.name || "valued customer"}. We appreciate your business! Questions? Just reply to this message.`,
+
+  job_rescheduled: (job: any, _technician: any, extraData?: any) =>
+    `📅 Reschedule notice: Your "${job.title}" has been moved to ${job.scheduled_date || "TBD"} at ${job.scheduled_time?.slice(0, 5) || "TBD"}.${extraData?.previous_date ? ` (Was: ${extraData.previous_date})` : ""} Questions? Reply to this message.`,
+
+  job_cancelled: (job: any, _technician: any, extraData?: any) =>
+    `❌ Your "${job.title}" appointment${job.scheduled_date ? ` on ${job.scheduled_date}` : ""} has been cancelled.${extraData?.cancellation_reason ? ` Reason: ${extraData.cancellation_reason}` : ""} To reschedule, please contact us.`,
+
+  technician_assigned: (job: any, technician: any) =>
+    `👷 Good news! ${technician?.full_name || "A technician"} has been assigned to your "${job.title}" on ${job.scheduled_date || "TBD"}. We'll notify you when they're on the way!`,
 };
 
 // Helper to format phone number for Twilio
@@ -105,8 +174,8 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { job_id, notification_type }: NotificationRequest = await req.json();
-    console.log(`Processing ${notification_type} notification for job ${job_id}`);
+    const { job_id, notification_type, extra_data }: NotificationRequest = await req.json();
+    console.log(`Processing ${notification_type} notification for job ${job_id}`, extra_data);
 
     // Fetch job details with customer
     const { data: job, error: jobError } = await supabase
@@ -160,7 +229,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`Sending ${notification_type} email to ${job.customer.email}`);
       
       const template = emailTemplates[notification_type];
-      const emailHtml = template.getBody(job, technician);
+      const emailHtml = template.getBody(job, technician, extra_data);
 
       const emailResponse = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -215,7 +284,7 @@ const handler = async (req: Request): Promise<Response> => {
       if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
         console.error("Twilio credentials not configured");
       } else {
-        const smsMessage = smsTemplates[notification_type](job, technician);
+        const smsMessage = smsTemplates[notification_type](job, technician, extra_data);
         const formattedPhone = formatPhoneNumber(job.customer.phone);
 
         const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;

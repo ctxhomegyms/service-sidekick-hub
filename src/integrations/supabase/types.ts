@@ -878,6 +878,7 @@ export type Database = {
           parent_job_id: string | null
           priority: Database["public"]["Enums"]["job_priority"]
           recurrence_pattern: Json | null
+          review_request_sent_at: string | null
           scheduled_date: string | null
           scheduled_time: string | null
           started_at: string | null
@@ -913,6 +914,7 @@ export type Database = {
           parent_job_id?: string | null
           priority?: Database["public"]["Enums"]["job_priority"]
           recurrence_pattern?: Json | null
+          review_request_sent_at?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           started_at?: string | null
@@ -948,6 +950,7 @@ export type Database = {
           parent_job_id?: string | null
           priority?: Database["public"]["Enums"]["job_priority"]
           recurrence_pattern?: Json | null
+          review_request_sent_at?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           started_at?: string | null
@@ -1048,42 +1051,63 @@ export type Database = {
         Row: {
           created_at: string
           customer_id: string
+          email_job_cancelled: boolean | null
           email_job_completed: boolean
+          email_job_rescheduled: boolean | null
           email_job_scheduled: boolean
+          email_technician_assigned: boolean | null
           email_technician_en_route: boolean
           id: string
+          sms_job_cancelled: boolean | null
           sms_job_completed: boolean
+          sms_job_rescheduled: boolean | null
           sms_job_scheduled: boolean
           sms_reminder_1h: boolean
           sms_reminder_24h: boolean
+          sms_reminder_morning: boolean | null
+          sms_technician_assigned: boolean | null
           sms_technician_en_route: boolean
           updated_at: string
         }
         Insert: {
           created_at?: string
           customer_id: string
+          email_job_cancelled?: boolean | null
           email_job_completed?: boolean
+          email_job_rescheduled?: boolean | null
           email_job_scheduled?: boolean
+          email_technician_assigned?: boolean | null
           email_technician_en_route?: boolean
           id?: string
+          sms_job_cancelled?: boolean | null
           sms_job_completed?: boolean
+          sms_job_rescheduled?: boolean | null
           sms_job_scheduled?: boolean
           sms_reminder_1h?: boolean
           sms_reminder_24h?: boolean
+          sms_reminder_morning?: boolean | null
+          sms_technician_assigned?: boolean | null
           sms_technician_en_route?: boolean
           updated_at?: string
         }
         Update: {
           created_at?: string
           customer_id?: string
+          email_job_cancelled?: boolean | null
           email_job_completed?: boolean
+          email_job_rescheduled?: boolean | null
           email_job_scheduled?: boolean
+          email_technician_assigned?: boolean | null
           email_technician_en_route?: boolean
           id?: string
+          sms_job_cancelled?: boolean | null
           sms_job_completed?: boolean
+          sms_job_rescheduled?: boolean | null
           sms_job_scheduled?: boolean
           sms_reminder_1h?: boolean
           sms_reminder_24h?: boolean
+          sms_reminder_morning?: boolean | null
+          sms_technician_assigned?: boolean | null
           sms_technician_en_route?: boolean
           updated_at?: string
         }

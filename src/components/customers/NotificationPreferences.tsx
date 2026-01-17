@@ -15,22 +15,36 @@ interface Preferences {
   email_job_scheduled: boolean;
   email_technician_en_route: boolean;
   email_job_completed: boolean;
+  email_job_rescheduled: boolean;
+  email_job_cancelled: boolean;
+  email_technician_assigned: boolean;
   sms_job_scheduled: boolean;
   sms_technician_en_route: boolean;
   sms_job_completed: boolean;
+  sms_job_rescheduled: boolean;
+  sms_job_cancelled: boolean;
+  sms_technician_assigned: boolean;
   sms_reminder_24h: boolean;
   sms_reminder_1h: boolean;
+  sms_reminder_morning: boolean;
 }
 
 const defaultPreferences: Preferences = {
   email_job_scheduled: true,
   email_technician_en_route: true,
   email_job_completed: true,
+  email_job_rescheduled: true,
+  email_job_cancelled: true,
+  email_technician_assigned: true,
   sms_job_scheduled: false,
   sms_technician_en_route: false,
   sms_job_completed: false,
+  sms_job_rescheduled: false,
+  sms_job_cancelled: false,
+  sms_technician_assigned: false,
   sms_reminder_24h: true,
   sms_reminder_1h: true,
+  sms_reminder_morning: false,
 };
 
 export function NotificationPreferences({ customerId }: NotificationPreferencesProps) {
@@ -57,11 +71,18 @@ export function NotificationPreferences({ customerId }: NotificationPreferencesP
           email_job_scheduled: data.email_job_scheduled,
           email_technician_en_route: data.email_technician_en_route,
           email_job_completed: data.email_job_completed,
+          email_job_rescheduled: (data as any).email_job_rescheduled ?? true,
+          email_job_cancelled: (data as any).email_job_cancelled ?? true,
+          email_technician_assigned: (data as any).email_technician_assigned ?? true,
           sms_job_scheduled: data.sms_job_scheduled,
           sms_technician_en_route: data.sms_technician_en_route,
           sms_job_completed: data.sms_job_completed,
+          sms_job_rescheduled: (data as any).sms_job_rescheduled ?? false,
+          sms_job_cancelled: (data as any).sms_job_cancelled ?? false,
+          sms_technician_assigned: (data as any).sms_technician_assigned ?? false,
           sms_reminder_24h: data.sms_reminder_24h ?? true,
           sms_reminder_1h: data.sms_reminder_1h ?? true,
+          sms_reminder_morning: (data as any).sms_reminder_morning ?? false,
         });
       }
     } catch (error) {
@@ -111,11 +132,15 @@ export function NotificationPreferences({ customerId }: NotificationPreferencesP
     { key: 'job_scheduled', label: 'Job Scheduled', description: 'When a service appointment is confirmed' },
     { key: 'technician_en_route', label: 'Technician En Route', description: 'When the technician is on their way' },
     { key: 'job_completed', label: 'Job Completed', description: 'When the service has been completed' },
+    { key: 'job_rescheduled', label: 'Job Rescheduled', description: 'When an appointment is moved to a new time' },
+    { key: 'job_cancelled', label: 'Job Cancelled', description: 'When an appointment is cancelled' },
+    { key: 'technician_assigned', label: 'Technician Assigned', description: 'When a technician is assigned to the job' },
   ];
 
   const reminderTypes = [
     { key: 'sms_reminder_24h', label: '24-Hour Reminder', description: 'SMS reminder sent 24 hours before appointment' },
     { key: 'sms_reminder_1h', label: '1-Hour Reminder', description: 'SMS reminder sent 1 hour before appointment' },
+    { key: 'sms_reminder_morning', label: 'Morning-Of Reminder', description: 'SMS reminder sent morning of appointment (8 AM)' },
   ];
 
   return (
