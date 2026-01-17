@@ -14,6 +14,198 @@ export type Database = {
   }
   public: {
     Tables: {
+      auto_reply_settings: {
+        Row: {
+          business_hours_only: boolean
+          created_at: string
+          delay_seconds: number
+          id: string
+          include_callback_link: boolean
+          is_active: boolean
+          message_template: string
+          trigger_type: Database["public"]["Enums"]["auto_reply_trigger"]
+          updated_at: string
+        }
+        Insert: {
+          business_hours_only?: boolean
+          created_at?: string
+          delay_seconds?: number
+          id?: string
+          include_callback_link?: boolean
+          is_active?: boolean
+          message_template?: string
+          trigger_type?: Database["public"]["Enums"]["auto_reply_trigger"]
+          updated_at?: string
+        }
+        Update: {
+          business_hours_only?: boolean
+          created_at?: string
+          delay_seconds?: number
+          id?: string
+          include_callback_link?: boolean
+          is_active?: boolean
+          message_template?: string
+          trigger_type?: Database["public"]["Enums"]["auto_reply_trigger"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      business_hours: {
+        Row: {
+          close_time: string
+          created_at: string
+          day_of_week: number
+          id: string
+          is_open: boolean
+          open_time: string
+          updated_at: string
+        }
+        Insert: {
+          close_time?: string
+          created_at?: string
+          day_of_week: number
+          id?: string
+          is_open?: boolean
+          open_time?: string
+          updated_at?: string
+        }
+        Update: {
+          close_time?: string
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          is_open?: boolean
+          open_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      call_log: {
+        Row: {
+          answered_by: string | null
+          call_sid: string | null
+          created_at: string
+          customer_id: string | null
+          direction: Database["public"]["Enums"]["call_direction"]
+          duration_seconds: number | null
+          ended_at: string | null
+          forwarded_to: string | null
+          from_number: string
+          id: string
+          menu_path: Json | null
+          status: string
+          to_number: string
+        }
+        Insert: {
+          answered_by?: string | null
+          call_sid?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: Database["public"]["Enums"]["call_direction"]
+          duration_seconds?: number | null
+          ended_at?: string | null
+          forwarded_to?: string | null
+          from_number: string
+          id?: string
+          menu_path?: Json | null
+          status?: string
+          to_number: string
+        }
+        Update: {
+          answered_by?: string | null
+          call_sid?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: Database["public"]["Enums"]["call_direction"]
+          duration_seconds?: number | null
+          ended_at?: string | null
+          forwarded_to?: string | null
+          from_number?: string
+          id?: string
+          menu_path?: Json | null
+          status?: string
+          to_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_log_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_recordings: {
+        Row: {
+          call_log_id: string | null
+          call_sid: string | null
+          caller_phone: string | null
+          created_at: string
+          customer_id: string | null
+          direction: Database["public"]["Enums"]["call_direction"]
+          duration_seconds: number | null
+          id: string
+          recording_sid: string | null
+          recording_url: string
+          status: string
+          storage_path: string | null
+          transcription: string | null
+        }
+        Insert: {
+          call_log_id?: string | null
+          call_sid?: string | null
+          caller_phone?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: Database["public"]["Enums"]["call_direction"]
+          duration_seconds?: number | null
+          id?: string
+          recording_sid?: string | null
+          recording_url: string
+          status?: string
+          storage_path?: string | null
+          transcription?: string | null
+        }
+        Update: {
+          call_log_id?: string | null
+          call_sid?: string | null
+          caller_phone?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: Database["public"]["Enums"]["call_direction"]
+          duration_seconds?: number | null
+          id?: string
+          recording_sid?: string | null
+          recording_url?: string
+          status?: string
+          storage_path?: string | null
+          transcription?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_recordings_call_log_id_fkey"
+            columns: ["call_log_id"]
+            isOneToOne: false
+            referencedRelation: "call_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_recordings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_template_items: {
         Row: {
           created_at: string
@@ -1196,6 +1388,106 @@ export type Database = {
           },
         ]
       }
+      phone_menu_options: {
+        Row: {
+          action_data: Json | null
+          action_type: Database["public"]["Enums"]["phone_menu_action_type"]
+          announcement: string | null
+          created_at: string
+          digit: string
+          id: string
+          label: string
+          menu_id: string
+          sort_order: number
+        }
+        Insert: {
+          action_data?: Json | null
+          action_type: Database["public"]["Enums"]["phone_menu_action_type"]
+          announcement?: string | null
+          created_at?: string
+          digit: string
+          id?: string
+          label: string
+          menu_id: string
+          sort_order?: number
+        }
+        Update: {
+          action_data?: Json | null
+          action_type?: Database["public"]["Enums"]["phone_menu_action_type"]
+          announcement?: string | null
+          created_at?: string
+          digit?: string
+          id?: string
+          label?: string
+          menu_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_menu_options_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "phone_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      phone_menus: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          greeting_audio_url: string | null
+          greeting_text: string | null
+          id: string
+          invalid_input_message: string | null
+          is_active: boolean
+          is_default: boolean
+          max_attempts: number
+          name: string
+          timeout_action: string
+          timeout_seconds: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          greeting_audio_url?: string | null
+          greeting_text?: string | null
+          id?: string
+          invalid_input_message?: string | null
+          is_active?: boolean
+          is_default?: boolean
+          max_attempts?: number
+          name: string
+          timeout_action?: string
+          timeout_seconds?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          greeting_audio_url?: string | null
+          greeting_text?: string | null
+          id?: string
+          invalid_input_message?: string | null
+          is_active?: boolean
+          is_default?: boolean
+          max_attempts?: number
+          name?: string
+          timeout_action?: string
+          timeout_seconds?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_menus_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pickup_requests: {
         Row: {
           created_at: string | null
@@ -1451,6 +1743,121 @@ export type Database = {
         }
         Relationships: []
       }
+      voicemail_settings: {
+        Row: {
+          created_at: string
+          greeting_audio_url: string | null
+          greeting_text: string | null
+          id: string
+          is_active: boolean
+          max_length_seconds: number
+          notification_email: string | null
+          notification_sms: string | null
+          transcribe: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          greeting_audio_url?: string | null
+          greeting_text?: string | null
+          id?: string
+          is_active?: boolean
+          max_length_seconds?: number
+          notification_email?: string | null
+          notification_sms?: string | null
+          transcribe?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          greeting_audio_url?: string | null
+          greeting_text?: string | null
+          id?: string
+          is_active?: boolean
+          max_length_seconds?: number
+          notification_email?: string | null
+          notification_sms?: string | null
+          transcribe?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      voicemails: {
+        Row: {
+          call_log_id: string | null
+          call_sid: string | null
+          caller_phone: string
+          created_at: string
+          customer_id: string | null
+          duration_seconds: number | null
+          id: string
+          is_archived: boolean
+          is_listened: boolean
+          listened_at: string | null
+          listened_by: string | null
+          recording_sid: string | null
+          recording_url: string | null
+          storage_path: string | null
+          transcription: string | null
+        }
+        Insert: {
+          call_log_id?: string | null
+          call_sid?: string | null
+          caller_phone: string
+          created_at?: string
+          customer_id?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_archived?: boolean
+          is_listened?: boolean
+          listened_at?: string | null
+          listened_by?: string | null
+          recording_sid?: string | null
+          recording_url?: string | null
+          storage_path?: string | null
+          transcription?: string | null
+        }
+        Update: {
+          call_log_id?: string | null
+          call_sid?: string | null
+          caller_phone?: string
+          created_at?: string
+          customer_id?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_archived?: boolean
+          is_listened?: boolean
+          listened_at?: string | null
+          listened_by?: string | null
+          recording_sid?: string | null
+          recording_url?: string | null
+          storage_path?: string | null
+          transcription?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voicemails_call_log_id_fkey"
+            columns: ["call_log_id"]
+            isOneToOne: false
+            referencedRelation: "call_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voicemails_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voicemails_listened_by_fkey"
+            columns: ["listened_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1491,6 +1898,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_manager: { Args: { _user_id: string }; Returns: boolean }
+      is_within_business_hours: {
+        Args: { check_timezone?: string }
+        Returns: boolean
+      }
       log_job_activity: {
         Args: {
           _activity_type: string
@@ -1505,6 +1916,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "manager" | "technician"
+      auto_reply_trigger: "missed_call" | "after_hours" | "busy" | "voicemail"
+      call_direction: "inbound" | "outbound"
       communication_channel: "phone" | "sms" | "email"
       conversation_status: "unread" | "read" | "responded" | "missed" | "closed"
       job_priority: "low" | "medium" | "high" | "urgent"
@@ -1516,6 +1929,13 @@ export type Database = {
         | "completed"
         | "cancelled"
       message_direction: "inbound" | "outbound"
+      phone_menu_action_type:
+        | "forward_call"
+        | "voicemail"
+        | "submenu"
+        | "sms_reply"
+        | "play_message"
+        | "business_hours_check"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1644,6 +2064,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "technician"],
+      auto_reply_trigger: ["missed_call", "after_hours", "busy", "voicemail"],
+      call_direction: ["inbound", "outbound"],
       communication_channel: ["phone", "sms", "email"],
       conversation_status: ["unread", "read", "responded", "missed", "closed"],
       job_priority: ["low", "medium", "high", "urgent"],
@@ -1656,6 +2078,14 @@ export const Constants = {
         "cancelled",
       ],
       message_direction: ["inbound", "outbound"],
+      phone_menu_action_type: [
+        "forward_call",
+        "voicemail",
+        "submenu",
+        "sms_reply",
+        "play_message",
+        "business_hours_check",
+      ],
     },
   },
 } as const
