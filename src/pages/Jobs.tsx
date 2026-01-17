@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, RefreshCw, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Filter, RefreshCw, ShoppingBag, Package, Truck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { JobCard } from '@/components/jobs/JobCard';
@@ -28,6 +28,7 @@ interface Job {
   scheduled_time: string | null;
   address: string | null;
   city: string | null;
+  service_category: string | null;
   customer: { name: string } | null;
   technician: { full_name: string | null; avatar_url: string | null } | null;
 }
@@ -37,6 +38,7 @@ export default function Jobs() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [view, setView] = useState<JobsView>('grid');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -60,6 +62,7 @@ export default function Jobs() {
           scheduled_time,
           address,
           city,
+          service_category,
           customer:customers(name),
           technician:profiles!jobs_assigned_technician_id_fkey(full_name, avatar_url)
         `)
@@ -106,7 +109,8 @@ export default function Jobs() {
     const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.customer?.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesCategory = categoryFilter === 'all' || job.service_category === categoryFilter;
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   return (
@@ -152,6 +156,25 @@ export default function Jobs() {
             />
           </div>
           <div className="flex gap-2">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full sm:w-[140px]">
+                <Package className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="pickup">
+                  <span className="flex items-center gap-2">
+                    <Package className="w-4 h-4" /> Pickups
+                  </span>
+                </SelectItem>
+                <SelectItem value="delivery">
+                  <span className="flex items-center gap-2">
+                    <Truck className="w-4 h-4" /> Deliveries
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <Filter className="w-4 h-4 mr-2" />

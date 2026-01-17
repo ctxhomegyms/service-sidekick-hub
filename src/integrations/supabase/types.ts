@@ -881,6 +881,7 @@ export type Database = {
           review_request_sent_at: string | null
           scheduled_date: string | null
           scheduled_time: string | null
+          service_category: string | null
           started_at: string | null
           state: string | null
           status: Database["public"]["Enums"]["job_status"]
@@ -917,6 +918,7 @@ export type Database = {
           review_request_sent_at?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          service_category?: string | null
           started_at?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -953,6 +955,7 @@ export type Database = {
           review_request_sent_at?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          service_category?: string | null
           started_at?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -1117,6 +1120,62 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: true
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pickup_requests: {
+        Row: {
+          created_at: string | null
+          door_widths: Json | null
+          floor_level: string
+          has_elevator: boolean | null
+          has_stairs: boolean | null
+          id: string
+          item_location: string
+          items_description: string
+          job_id: string | null
+          payment_username: string | null
+          preferred_payment_method: string | null
+          stairs_description: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          door_widths?: Json | null
+          floor_level: string
+          has_elevator?: boolean | null
+          has_stairs?: boolean | null
+          id?: string
+          item_location: string
+          items_description: string
+          job_id?: string | null
+          payment_username?: string | null
+          preferred_payment_method?: string | null
+          stairs_description?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          door_widths?: Json | null
+          floor_level?: string
+          has_elevator?: boolean | null
+          has_stairs?: boolean | null
+          id?: string
+          item_location?: string
+          items_description?: string
+          job_id?: string | null
+          payment_username?: string | null
+          preferred_payment_method?: string | null
+          stairs_description?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pickup_requests_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]

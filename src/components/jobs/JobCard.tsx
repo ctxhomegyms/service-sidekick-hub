@@ -1,9 +1,10 @@
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Clock, User, Calendar } from 'lucide-react';
+import { MapPin, Clock, User, Calendar, Package, Truck } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface JobCardProps {
@@ -17,6 +18,7 @@ interface JobCardProps {
     scheduled_time?: string | null;
     address?: string | null;
     city?: string | null;
+    service_category?: string | null;
     customer?: { name: string } | null;
     technician?: { full_name: string | null; avatar_url: string | null } | null;
   };
@@ -52,6 +54,20 @@ export function JobCard({ job, onClick, className }: JobCardProps) {
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {job.service_category === 'pickup' && (
+                <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200 gap-1">
+                  <Package className="w-3 h-3" />
+                  Pickup
+                </Badge>
+              )}
+              {job.service_category === 'delivery' && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 gap-1">
+                  <Truck className="w-3 h-3" />
+                  Delivery
+                </Badge>
+              )}
+            </div>
             <h3 className="font-semibold truncate">{job.title}</h3>
             {job.customer && (
               <p className="text-sm text-muted-foreground truncate">
