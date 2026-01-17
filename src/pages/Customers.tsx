@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Phone, Mail, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { findDuplicateCustomers, DuplicateCustomer } from '@/lib/customerValidation';
+import { DuplicateCustomerWarning } from '@/components/customers/DuplicateCustomerWarning';
 
 interface Customer {
   id: string;
@@ -39,6 +41,8 @@ export default function Customers() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [duplicates, setDuplicates] = useState<DuplicateCustomer[]>([]);
+  const [skipDuplicateCheck, setSkipDuplicateCheck] = useState(false);
   
   const [newCustomer, setNewCustomer] = useState({
     name: '',
@@ -72,11 +76,51 @@ export default function Customers() {
     }
   };
 
+  // Check for duplicates when phone or email changes
+  const checkForDuplicates = useCallback(async (phone: string, email: string) => {
+    if (!phone && !email) {
+      setDuplicates([]);
+      return;
+    }
+    
+    const found = await findDuplicateCustomers(phone || null, email || null);
+    setDuplicates(found);
+  }, []);
+
+  // Debounced duplicate check
+  useEffect(() => {
+    if (!isDialogOpen) return;
+    
+    const timer = setTimeout(() => {
+      if (!skipDuplicateCheck) {
+        checkForDuplicates(newCustomer.phone, newCustomer.email);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [newCustomer.phone, newCustomer.email, isDialogOpen, skipDuplicateCheck, checkForDuplicates]);
+
+  const handleUseExistingCustomer = (customerId: string) => {
+    setIsDialogOpen(false);
+    navigate(`/customers/${customerId}`);
+  };
+
+  const handleCreateAnyway = () => {
+    setSkipDuplicateCheck(true);
+    setDuplicates([]);
+  };
+
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newCustomer.name.trim()) {
       toast.error('Please enter a customer name');
+      return;
+    }
+
+    // If duplicates exist and user hasn't confirmed, show warning
+    if (duplicates.length > 0 && !skipDuplicateCheck) {
+      toast.error('Please resolve the duplicate customer warning first');
       return;
     }
 
@@ -109,9 +153,19 @@ export default function Customers() {
         notes: '',
         sms_consent: false,
       });
+      setDuplicates([]);
+      setSkipDuplicateCheck(false);
       fetchCustomers();
     } catch (error: any) {
       toast.error(error.message || 'Failed to create customer');
+    }
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setDuplicates([]);
+      setSkipDuplicateCheck(false);
     }
   };
 
@@ -131,20 +185,30 @@ export default function Customers() {
             <p className="text-muted-foreground">Manage your customer database</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" />
                 Add Customer
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Customer</DialogTitle>
                 <DialogDescription>
                   Add a new customer to your database
                 </DialogDescription>
               </DialogHeader>
+              
+              {/* Duplicate Customer Warning */}
+              {duplicates.length > 0 && !skipDuplicateCheck && (
+                <DuplicateCustomerWarning
+                  duplicates={duplicates}
+                  onUseExisting={handleUseExistingCustomer}
+                  onCreateNew={handleCreateAnyway}
+                />
+              )}
+              
               <form onSubmit={handleCreateCustomer} className="space-y-4">
                 <div className="grid gap-4">
                   <div className="space-y-2">
