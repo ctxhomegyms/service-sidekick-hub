@@ -5,13 +5,9 @@ import {
   ClipboardCheck, 
   Truck, 
   LayoutDashboard,
-  MapPin,
-  Bell,
-  Camera,
-  Users,
-  BarChart3,
-  Clock
 } from 'lucide-react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import { cn } from '@/lib/utils';
 
 const features = [
   {
@@ -53,10 +49,19 @@ const features = [
 ];
 
 export function FeaturesGrid() {
+  const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation();
+  const { ref: gridRef, isVisible: gridVisible } = useScrollAnimation();
+
   return (
     <section id="features" className="py-20 sm:py-28 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+        <div 
+          ref={headerRef}
+          className={cn(
+            "text-center mb-16 transition-all duration-700 ease-out",
+            headerVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          )}
+        >
           <div className="inline-block bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
             Features
           </div>
@@ -69,11 +74,15 @@ export function FeaturesGrid() {
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div ref={gridRef} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {features.map((feature, index) => (
             <div
               key={index}
-              className="group bg-card rounded-2xl p-6 sm:p-8 border border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg"
+              className={cn(
+                "group bg-card rounded-2xl p-6 sm:p-8 border border-border hover:border-primary/30 transition-all duration-500 ease-out hover:shadow-lg",
+                gridVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+              )}
+              style={{ transitionDelay: `${index * 100}ms` }}
             >
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
                 <feature.icon className="w-6 h-6 text-primary" />
