@@ -78,13 +78,14 @@ serve(async (req) => {
       // Get customer notification preferences
       const { data: prefs } = await supabase
         .from("notification_preferences")
-        .select("sms_reminder_24h, sms_reminder_1h")
+        .select("sms_reminder_24h, sms_reminder_1h, sms_reminder_morning")
         .eq("customer_id", customer.id)
         .maybeSingle();
 
-      // Default to true if no preferences set
+      // Default to true for legacy reminders, false for morning (opt-in)
       const smsReminder24h = prefs?.sms_reminder_24h ?? true;
       const smsReminder1h = prefs?.sms_reminder_1h ?? true;
+      const smsReminderMorning = (prefs as any)?.sms_reminder_morning ?? false;
 
       // Calculate time until appointment
       const appointmentDate = new Date(`${job.scheduled_date}T${job.scheduled_time}`);
@@ -118,6 +119,25 @@ serve(async (req) => {
           if (result.success) sentCount++;
         } else {
           console.log(`Job ${job.id}: 1h reminder already sent`);
+        }
+      }
+
+      // Check for morning-of reminder (appointment same day, current time 7:30-8:30 AM)
+      const currentHour = now.getHours();
+      const currentMinutes = now.getMinutes();
+      const isAppointmentToday = job.scheduled_date === now.toISOString().split("T")[0];
+      const isMorningWindow = currentHour === 7 && currentMinutes >= 30 || currentHour === 8 && currentMinutes <= 30;
+
+      if (smsReminderMorning && isAppointmentToday && isMorningWindow && hoursUntil > 1) {
+        const alreadySent = await checkAlreadySent(supabase, job.id, "reminder_morning");
+        if (!alreadySent) {
+          const message = `Good morning! Just a reminder: your "${job.title}" appointment is today at ${formatTime(job.scheduled_time)}. We'll notify you when your technician is on the way!`;
+          const result = await sendSMS(accountSid, authToken, twilioPhoneNumber, customer.phone, message);
+          await logNotification(supabase, job.id, customer.id, "reminder_morning", customer.phone, result);
+          results.push({ jobId: job.id, type: "morning", success: result.success });
+          if (result.success) sentCount++;
+        } else {
+          console.log(`Job ${job.id}: Morning reminder already sent`);
         }
       }
     }
