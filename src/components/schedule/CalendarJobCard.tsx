@@ -1,5 +1,6 @@
-import { Check, Clock, MapPin } from 'lucide-react';
+import { Check, Clock, MapPin, MessageSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type JobStatus = 'pending' | 'scheduled' | 'en_route' | 'in_progress' | 'completed' | 'cancelled';
@@ -12,10 +13,16 @@ interface CalendarJobCardProps {
     scheduled_time: string | null;
     estimated_duration_minutes: number | null;
     address: string | null;
-    customer: { name: string } | null;
+    customer: { 
+      id?: string;
+      name: string; 
+      email?: string | null;
+      phone?: string | null;
+    } | null;
     technician: { full_name: string | null; avatar_url?: string | null } | null;
   };
   onClick: () => void;
+  onMessageClick?: (e: React.MouseEvent) => void;
   compact?: boolean;
 }
 
@@ -28,8 +35,9 @@ const statusBorderColors: Record<JobStatus, string> = {
   cancelled: 'border-l-destructive',
 };
 
-export function CalendarJobCard({ job, onClick, compact = false }: CalendarJobCardProps) {
+export function CalendarJobCard({ job, onClick, onMessageClick, compact = false }: CalendarJobCardProps) {
   const isCompleted = job.status === 'completed';
+  const hasContact = job.customer?.phone || job.customer?.email;
   const initials = job.technician?.full_name
     ?.split(' ')
     .map((n) => n[0])
@@ -56,6 +64,11 @@ export function CalendarJobCard({ job, onClick, compact = false }: CalendarJobCa
     return `${hour12}:${endMins.toString().padStart(2, '0')} ${ampm}`;
   };
 
+  const handleMessageClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onMessageClick?.(e);
+  };
+
   return (
     <div
       onClick={onClick}
@@ -71,8 +84,20 @@ export function CalendarJobCard({ job, onClick, compact = false }: CalendarJobCa
         </div>
       )}
 
+      {/* Quick message button on hover */}
+      {hasContact && onMessageClick && (
+        <Button
+          variant="secondary"
+          size="icon"
+          className="absolute top-1 right-1 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm"
+          onClick={handleMessageClick}
+        >
+          <MessageSquare className="w-3 h-3" />
+        </Button>
+      )}
+
       {/* Customer name */}
-      <div className="font-medium text-primary truncate">
+      <div className="font-medium text-primary truncate pr-6">
         {job.customer?.name || 'No customer'}
       </div>
 
