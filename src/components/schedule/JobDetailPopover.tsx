@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Mail, Phone, MapPin, Users, ExternalLink, X } from 'lucide-react';
+import { Mail, Phone, MapPin, Users, ExternalLink, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,9 +38,10 @@ interface JobDetailPopoverProps {
   children: ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onMessageClick?: () => void;
 }
 
-export function JobDetailPopover({ job, children, open, onOpenChange }: JobDetailPopoverProps) {
+export function JobDetailPopover({ job, children, open, onOpenChange, onMessageClick }: JobDetailPopoverProps) {
   const formatTime = (time: string | null) => {
     if (!time) return '';
     const [hours, minutes] = time.split(':');
@@ -70,6 +71,8 @@ export function JobDetailPopover({ job, children, open, onOpenChange }: JobDetai
     .map((n) => n[0])
     .join('')
     .toUpperCase() || '?';
+
+  const hasContact = job.customer?.phone || job.customer?.email;
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -158,13 +161,19 @@ export function JobDetailPopover({ job, children, open, onOpenChange }: JobDetai
         )}
 
         {/* Footer */}
-        <div className="p-4 flex items-center justify-between">
+        <div className="p-4 flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
             <Link to={`/jobs?edit=${job.id}`}>
               Edit job
             </Link>
           </Button>
-          <Button size="sm" asChild>
+          {hasContact && onMessageClick && (
+            <Button variant="ghost" size="sm" onClick={onMessageClick}>
+              <MessageSquare className="w-4 h-4 mr-1" />
+              Message
+            </Button>
+          )}
+          <Button size="sm" asChild className="ml-auto">
             <Link to={`/jobs?view=${job.id}`}>
               View details
               <ExternalLink className="w-3 h-3 ml-1" />

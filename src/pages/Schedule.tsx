@@ -14,6 +14,8 @@ import { ViewToggle, ScheduleView } from '@/components/schedule/ViewToggle';
 import { ScheduleFilters, ScheduleFiltersState } from '@/components/schedule/ScheduleFilters';
 import { CalendarJobCard } from '@/components/schedule/CalendarJobCard';
 import { JobDetailPopover } from '@/components/schedule/JobDetailPopover';
+import { ScheduleNotificationDialog } from '@/components/schedule/ScheduleNotificationDialog';
+import { QuickMessageDialog } from '@/components/schedule/QuickMessageDialog';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
 import { RouteOptimizer } from '@/components/dispatch/RouteOptimizer';
 import { notifyJobScheduled } from '@/lib/notifications';
@@ -23,6 +25,7 @@ import { useIsMobile, useForceMobileLayout } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+
 type JobStatus = 'pending' | 'scheduled' | 'en_route' | 'in_progress' | 'completed' | 'cancelled';
 type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -80,6 +83,38 @@ export default function Schedule() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showUnassignedPanel, setShowUnassignedPanel] = useState(true);
   const [mobileTab, setMobileTab] = useState<'unassigned' | 'schedule'>('schedule');
+  
+  // Notification dialog state
+  const [notificationDialog, setNotificationDialog] = useState<{
+    open: boolean;
+    jobId: string | null;
+    customerName: string | null;
+    scheduledDate: string | null;
+    scheduledTime: string | null;
+  }>({
+    open: false,
+    jobId: null,
+    customerName: null,
+    scheduledDate: null,
+    scheduledTime: null,
+  });
+
+  // Quick message dialog state
+  const [messageDialog, setMessageDialog] = useState<{
+    open: boolean;
+    customerName: string | null;
+    customerPhone: string | null;
+    customerEmail: string | null;
+    customerId: string | null;
+    jobId: string | null;
+  }>({
+    open: false,
+    customerName: null,
+    customerPhone: null,
+    customerEmail: null,
+    customerId: null,
+    jobId: null,
+  });
 
   // Calculate date ranges based on view
   const { weekStart, weekDays, monthStart, monthEnd, monthDays } = useMemo(() => {
@@ -182,6 +217,9 @@ export default function Schedule() {
       const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
 
       try {
+        // Find the job to get customer info
+        const job = jobs.find(j => j.id === draggableId);
+        
         const { error } = await supabase
           .from('jobs')
           .update({ 
@@ -194,13 +232,50 @@ export default function Schedule() {
 
         if (error) throw error;
         
-        notifyJobScheduled(draggableId);
-        toast.success('Job scheduled');
+        // Check if auto-notify preference is saved
+        const autoNotify = localStorage.getItem('schedule_auto_notify');
+        
+        if (autoNotify === 'true') {
+          // Auto-send notification
+          notifyJobScheduled(draggableId);
+          toast.success('Job scheduled and notification sent');
+        } else if (autoNotify === 'false') {
+          // Skip notification silently
+          toast.success('Job scheduled');
+        } else {
+          // Show confirmation dialog
+          setNotificationDialog({
+            open: true,
+            jobId: draggableId,
+            customerName: job?.customer?.name || null,
+            scheduledDate: dateStr,
+            scheduledTime: timeStr,
+          });
+        }
+        
         fetchData();
       } catch (error: any) {
         toast.error(error.message);
       }
     }
+  };
+
+  const handleNotificationConfirm = () => {
+    if (notificationDialog.jobId) {
+      notifyJobScheduled(notificationDialog.jobId);
+      toast.success('Notification sent');
+    }
+  };
+
+  const handleOpenMessageDialog = (job: ScheduledJob) => {
+    setMessageDialog({
+      open: true,
+      customerName: job.customer?.name || null,
+      customerPhone: job.customer?.phone || null,
+      customerEmail: job.customer?.email || null,
+      customerId: job.customer?.id || null,
+      jobId: job.id,
+    });
   };
 
   // Apply filters
@@ -830,6 +905,7 @@ export default function Schedule() {
                                         <CalendarJobCard
                                           job={job}
                                           onClick={() => setSelectedJobId(job.id)}
+                                          onMessageClick={() => handleOpenMessageDialog(job)}
                                         />
                                       </div>
                                     )}
@@ -896,6 +972,7 @@ export default function Schedule() {
                           job={job}
                           open={selectedJobId === job.id}
                           onOpenChange={(open) => setSelectedJobId(open ? job.id : null)}
+                          onMessageClick={() => handleOpenMessageDialog(job)}
                         >
                           <div
                             onClick={() => setSelectedJobId(job.id)}
@@ -922,6 +999,28 @@ export default function Schedule() {
             </div>
           </div>
         )}
+
+        {/* Notification Dialog */}
+        <ScheduleNotificationDialog
+          open={notificationDialog.open}
+          onOpenChange={(open) => setNotificationDialog(prev => ({ ...prev, open }))}
+          customerName={notificationDialog.customerName}
+          scheduledDate={notificationDialog.scheduledDate}
+          scheduledTime={notificationDialog.scheduledTime}
+          onConfirm={handleNotificationConfirm}
+          onSkip={() => {}}
+        />
+
+        {/* Quick Message Dialog */}
+        <QuickMessageDialog
+          open={messageDialog.open}
+          onOpenChange={(open) => setMessageDialog(prev => ({ ...prev, open }))}
+          customerName={messageDialog.customerName}
+          customerPhone={messageDialog.customerPhone}
+          customerEmail={messageDialog.customerEmail}
+          customerId={messageDialog.customerId}
+          jobId={messageDialog.jobId || undefined}
+        />
       </div>
     </AppLayout>
   );
