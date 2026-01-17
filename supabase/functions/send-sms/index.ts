@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,7 @@ interface SMSRequest {
   to: string;
   message: string;
   conversationId?: string;
+  customerId?: string; // Optional: pass customer ID directly for faster lookup
 }
 
 serve(async (req) => {
@@ -21,6 +23,8 @@ serve(async (req) => {
     const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
     const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
     const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!accountSid || !authToken || !twilioPhoneNumber) {
       console.error("Missing Twilio credentials");
@@ -30,7 +34,15 @@ serve(async (req) => {
       );
     }
 
-    const { to, message, conversationId }: SMSRequest = await req.json();
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing Supabase credentials");
+      return new Response(
+        JSON.stringify({ error: "Supabase credentials not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { to, message, conversationId, customerId }: SMSRequest = await req.json();
 
     if (!to || !message) {
       return new Response(
@@ -46,6 +58,65 @@ serve(async (req) => {
     if (!cleanedPhone.startsWith("+")) {
       // Assume US number if no country code
       cleanedPhone = "+1" + cleanedPhone;
+    }
+
+    // Initialize Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check SMS consent before sending
+    let customer = null;
+    
+    if (customerId) {
+      // If customer ID provided, look up directly
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, phone, sms_consent")
+        .eq("id", customerId)
+        .single();
+      
+      if (!error && data) {
+        customer = data;
+      }
+    }
+    
+    // If no customer found by ID, try to find by phone number
+    if (!customer) {
+      // Try multiple phone formats to find a match
+      const phoneVariants = [
+        cleanedPhone,
+        cleanedPhone.replace("+1", ""),
+        cleanedPhone.replace("+", ""),
+      ];
+      
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, phone, sms_consent")
+        .or(phoneVariants.map(p => `phone.ilike.%${p.slice(-10)}`).join(","))
+        .limit(1);
+      
+      if (!error && data && data.length > 0) {
+        customer = data[0];
+      }
+    }
+
+    // Enforce SMS consent check
+    if (customer) {
+      if (customer.sms_consent !== true) {
+        console.warn(`SMS blocked: Customer ${customer.name} (${customer.id}) has not given SMS consent`);
+        return new Response(
+          JSON.stringify({
+            error: "SMS consent not given",
+            message: "This customer has not opted in to receive SMS messages. Please obtain consent before sending.",
+            customerId: customer.id,
+            customerName: customer.name,
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.log(`SMS consent verified for customer: ${customer.name} (${customer.id})`);
+    } else {
+      // If no customer found, log warning but allow sending (for system messages, etc.)
+      console.warn(`No customer found for phone ${cleanedPhone} - proceeding without consent check`);
     }
 
     console.log(`Sending SMS to ${cleanedPhone} via Twilio`);
@@ -124,6 +195,7 @@ serve(async (req) => {
         to: finalData.to,
         error_code: finalData.error_code ?? null,
         error_message: finalData.error_message ?? null,
+        consent_verified: customer ? true : false,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
