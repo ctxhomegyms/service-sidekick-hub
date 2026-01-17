@@ -90,6 +90,36 @@ export type Database = {
           },
         ]
       }
+      company_settings: {
+        Row: {
+          business_email: string | null
+          business_name: string | null
+          business_phone: string | null
+          business_timezone: string | null
+          created_at: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_email?: string | null
+          business_name?: string | null
+          business_phone?: string | null
+          business_timezone?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_email?: string | null
+          business_name?: string | null
+          business_phone?: string | null
+          business_timezone?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       conversation_messages: {
         Row: {
           content: string
@@ -838,18 +868,21 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          require_checklist_completion: boolean | null
         }
         Insert: {
           color?: string | null
           created_at?: string
           id?: string
           name: string
+          require_checklist_completion?: boolean | null
         }
         Update: {
           color?: string | null
           created_at?: string
           id?: string
           name?: string
+          require_checklist_completion?: boolean | null
         }
         Relationships: []
       }
@@ -889,6 +922,7 @@ export type Database = {
           time_window_start: string | null
           title: string
           updated_at: string
+          version: number | null
           zip_code: string | null
         }
         Insert: {
@@ -926,6 +960,7 @@ export type Database = {
           time_window_start?: string | null
           title: string
           updated_at?: string
+          version?: number | null
           zip_code?: string | null
         }
         Update: {
@@ -963,6 +998,7 @@ export type Database = {
           time_window_start?: string | null
           title?: string
           updated_at?: string
+          version?: number | null
           zip_code?: string | null
         }
         Relationships: [
@@ -1384,6 +1420,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_technician_availability: {
+        Args: {
+          p_date: string
+          p_end_time: string
+          p_exclude_job_id?: string
+          p_start_time: string
+          p_technician_id: string
+        }
+        Returns: {
+          customer_name: string
+          end_time: string
+          job_id: string
+          job_title: string
+          scheduled_date: string
+          scheduled_time: string
+        }[]
+      }
+      find_duplicate_customers: {
+        Args: { p_email?: string; p_exclude_id?: string; p_phone?: string }
+        Returns: {
+          email: string
+          id: string
+          match_type: string
+          name: string
+          phone: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1402,6 +1465,7 @@ export type Database = {
         }
         Returns: string
       }
+      normalize_phone_number: { Args: { phone: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "manager" | "technician"
