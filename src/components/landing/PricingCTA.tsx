@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const benefits = [
   'No payment processing fees',
@@ -16,6 +17,7 @@ const benefits = [
 
 export function PricingCTA() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -31,14 +33,36 @@ export function PricingCTA() {
       return;
     }
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast.success('Thanks! We\'ll be in touch within 24 hours.');
-    setFormData({ name: '', email: '', company: '', message: '' });
-    setIsSubmitting(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-demo-request', {
+        body: {
+          name: formData.name,
+          email: formData.email,
+          company: formData.company,
+          message: formData.message || undefined,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success('Thanks! We\'ll be in touch within 24 hours.');
+      setFormData({ name: '', email: '', company: '', message: '' });
+      setIsSubmitted(true);
+    } catch (error: any) {
+      console.error('Demo request error:', error);
+      toast.error(error.message || 'Failed to submit. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -82,12 +106,33 @@ export function PricingCTA() {
 
             {/* Right side - Contact form */}
             <div className="bg-card rounded-2xl p-6 sm:p-8 border border-border shadow-lg">
-              <h3 className="text-2xl font-heading text-foreground mb-2">
-                Request a Demo
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                See FixAGym Field in action. We'll walk you through the platform.
-              </p>
+              {isSubmitted ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-success/10 flex items-center justify-center mb-6">
+                    <CheckCircle2 className="w-8 h-8 text-success" />
+                  </div>
+                  <h3 className="text-2xl font-heading text-foreground mb-2">
+                    Request Received!
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    Thanks for your interest in FixAGym Field. We'll be in touch within 24 hours to schedule your personalized demo.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsSubmitted(false)}
+                    className="gap-2"
+                  >
+                    Submit Another Request
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-2xl font-heading text-foreground mb-2">
+                    Request a Demo
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    See FixAGym Field in action. We'll walk you through the platform.
+                  </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -163,6 +208,8 @@ export function PricingCTA() {
                   Free demo • No credit card required • Response within 24 hours
                 </p>
               </form>
+                </>
+              )}
             </div>
           </div>
         </div>
