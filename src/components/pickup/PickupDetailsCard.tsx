@@ -107,11 +107,7 @@ export function PickupDetailsCard({ jobId }: PickupDetailsCardProps) {
     return methods[method] || method;
   };
 
-  if (isLoading) {
-    return null;
-  }
-
-  if (!pickupRequest) {
+  if (isLoading || !pickupRequest) {
     return null;
   }
 
@@ -160,8 +156,6 @@ export function PickupDetailsCard({ jobId }: PickupDetailsCardProps) {
             <div>
               <h4 className="text-sm font-medium mb-2 flex items-center gap-1 text-muted-foreground">
                 <ArrowUpDown className="w-4 h-4" />
-                Access
-              </h4>
                 Access
               </h4>
               <div className="flex flex-wrap gap-1">

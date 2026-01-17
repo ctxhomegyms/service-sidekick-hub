@@ -14,6 +14,7 @@ import { JobChecklistDisplay } from '@/components/jobs/JobChecklistDisplay';
 import { JobNotes } from '@/components/jobs/JobNotes';
 import { PhotoUpload } from '@/components/jobs/PhotoUpload';
 import { JobActivities } from '@/components/jobs/JobActivities';
+import { PickupDetailsCard } from '@/components/pickup/PickupDetailsCard';
 
 interface JobData {
   id: string;
@@ -36,6 +37,7 @@ interface JobData {
   longitude: number | null;
   created_at: string;
   completed_at: string | null;
+  service_category: string | null;
   customer: {
     id: string;
     name: string;
@@ -168,6 +170,13 @@ export default function JobDetail() {
               <ServiceDetailsCard job={job} onUpdate={handleJobUpdate} />
               <InstructionsCard job={job} onUpdate={handleJobUpdate} />
             </div>
+            
+            {/* Pickup Details - only show for pickup jobs */}
+            {job.service_category === 'pickup' && (
+              <div className="lg:col-span-2">
+                <PickupDetailsCard jobId={job.id} />
+              </div>
+            )}
             
             <AppointmentsSection job={job} onUpdate={handleJobUpdate} />
             
