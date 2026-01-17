@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Clock, User, Pencil, Check, X, Timer } from 'lucide-react';
+import { Calendar, Clock, User, Pencil, Check, X, Timer, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { canScheduleJob, SchedulingConflict, calculateEndTime } from '@/lib/scheduling';
+import { ConflictWarningDialog } from '@/components/scheduling/ConflictWarningDialog';
 import {
   Select,
   SelectContent,
@@ -15,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AppointmentsSectionProps {
   job: {
@@ -47,6 +50,10 @@ export function AppointmentsSection({ job, onUpdate }: AppointmentsSectionProps)
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [technicians, setTechnicians] = useState<Array<{ id: string; full_name: string | null; avatar_url: string | null }>>([]);
+  const [conflicts, setConflicts] = useState<SchedulingConflict[]>([]);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<typeof formData | null>(null);
+  
   const [formData, setFormData] = useState({
     status: job.status,
     scheduled_date: job.scheduled_date || '',
@@ -65,12 +72,42 @@ export function AppointmentsSection({ job, onUpdate }: AppointmentsSectionProps)
     if (data) setTechnicians(data);
   };
 
+  // Check for conflicts when technician, date, or time changes
+  useEffect(() => {
+    const checkConflicts = async () => {
+      if (formData.assigned_technician_id && formData.scheduled_date && formData.scheduled_time) {
+        const duration = parseInt(formData.estimated_duration_minutes) || 60;
+        const result = await canScheduleJob(
+          formData.assigned_technician_id,
+          formData.scheduled_date,
+          formData.scheduled_time,
+          duration,
+          job.id
+        );
+        setConflicts(result.conflicts);
+      } else {
+        setConflicts([]);
+      }
+    };
+    
+    if (isEditing) {
+      checkConflicts();
+    }
+  }, [formData.assigned_technician_id, formData.scheduled_date, formData.scheduled_time, formData.estimated_duration_minutes, isEditing, job.id]);
+
   const handleEdit = () => {
     fetchTechnicians();
     setIsEditing(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (forceOverride = false) => {
+    // Check for conflicts before saving
+    if (!forceOverride && conflicts.length > 0) {
+      setPendingFormData(formData);
+      setShowConflictDialog(true);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const { error } = await supabase
@@ -90,6 +127,7 @@ export function AppointmentsSection({ job, onUpdate }: AppointmentsSectionProps)
 
       toast.success('Appointment updated');
       setIsEditing(false);
+      setConflicts([]);
       onUpdate();
     } catch (error) {
       console.error('Error updating appointment:', error);
@@ -97,6 +135,16 @@ export function AppointmentsSection({ job, onUpdate }: AppointmentsSectionProps)
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleConflictConfirm = () => {
+    setShowConflictDialog(false);
+    handleSave(true);
+  };
+
+  const handleConflictCancel = () => {
+    setShowConflictDialog(false);
+    setPendingFormData(null);
   };
 
   const handleCancel = () => {
@@ -110,6 +158,12 @@ export function AppointmentsSection({ job, onUpdate }: AppointmentsSectionProps)
       assigned_technician_id: job.assigned_technician?.id || '',
     });
     setIsEditing(false);
+    setConflicts([]);
+  };
+
+  const getSelectedTechnicianName = () => {
+    const tech = technicians.find(t => t.id === formData.assigned_technician_id);
+    return tech?.full_name || 'Selected technician';
   };
 
   const formatDateTime = (date: string | null, time: string | null) => {
@@ -142,7 +196,7 @@ export function AppointmentsSection({ job, onUpdate }: AppointmentsSectionProps)
             <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isSaving}>
               <X className="w-4 h-4" />
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            <Button size="sm" onClick={() => handleSave()} disabled={isSaving}>
               <Check className="w-4 h-4" />
             </Button>
           </div>
@@ -339,6 +393,16 @@ export function AppointmentsSection({ job, onUpdate }: AppointmentsSectionProps)
           )}
         </div>
       )}
+
+      {/* Conflict Warning Dialog */}
+      <ConflictWarningDialog
+        open={showConflictDialog}
+        onOpenChange={setShowConflictDialog}
+        conflicts={conflicts}
+        technicianName={getSelectedTechnicianName()}
+        onConfirm={handleConflictConfirm}
+        onCancel={handleConflictCancel}
+      />
     </div>
   );
 }
