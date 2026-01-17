@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
 interface Customer {
@@ -48,6 +49,7 @@ export default function Customers() {
     state: '',
     zip_code: '',
     notes: '',
+    sms_consent: false,
   });
 
   useEffect(() => {
@@ -88,6 +90,8 @@ export default function Customers() {
         state: newCustomer.state || null,
         zip_code: newCustomer.zip_code || null,
         notes: newCustomer.notes || null,
+        sms_consent: newCustomer.sms_consent,
+        sms_consent_date: newCustomer.sms_consent ? new Date().toISOString() : null,
       });
 
       if (error) throw error;
@@ -103,6 +107,7 @@ export default function Customers() {
         state: '',
         zip_code: '',
         notes: '',
+        sms_consent: false,
       });
       fetchCustomers();
     } catch (error: any) {
@@ -221,6 +226,28 @@ export default function Customers() {
                       placeholder="Additional notes..."
                       rows={3}
                     />
+                  </div>
+
+                  {/* SMS Consent Checkbox */}
+                  <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/50 p-4">
+                    <Checkbox
+                      id="sms_consent"
+                      checked={newCustomer.sms_consent}
+                      onCheckedChange={(checked) => 
+                        setNewCustomer(c => ({ ...c, sms_consent: checked === true }))
+                      }
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="sms_consent" className="text-sm font-medium cursor-pointer">
+                        SMS Consent
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Customer agrees to receive service-related SMS notifications including appointment reminders, 
+                        technician updates, and job status messages. Message and data rates may apply. 
+                        See our <a href="/sms-terms" target="_blank" className="underline hover:text-foreground">SMS Terms</a>.
+                      </p>
+                    </div>
                   </div>
                 </div>
 

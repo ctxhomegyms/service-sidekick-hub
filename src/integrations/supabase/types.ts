@@ -292,6 +292,8 @@ export type Database = {
           notes: string | null
           phone: string | null
           shopify_customer_id: string | null
+          sms_consent: boolean | null
+          sms_consent_date: string | null
           state: string | null
           updated_at: string
           zip_code: string | null
@@ -306,6 +308,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           shopify_customer_id?: string | null
+          sms_consent?: boolean | null
+          sms_consent_date?: string | null
           state?: string | null
           updated_at?: string
           zip_code?: string | null
@@ -320,6 +324,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           shopify_customer_id?: string | null
+          sms_consent?: boolean | null
+          sms_consent_date?: string | null
           state?: string | null
           updated_at?: string
           zip_code?: string | null
