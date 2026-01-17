@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.create-admin-user]
 verify_jwt = false
+
+[functions.submit-demo-request]
+verify_jwt = false
