@@ -22,8 +22,6 @@ import Inbox from "./pages/Inbox";
 import SmsTerms from "./pages/SmsTerms";
 import Privacy from "./pages/Privacy";
 import RequestPickup from "./pages/RequestPickup";
-import Voicemails from "./pages/Voicemails";
-import CallLog from "./pages/CallLog";
 import Leads from "./pages/Leads";
 import NotFound from "./pages/NotFound";
 

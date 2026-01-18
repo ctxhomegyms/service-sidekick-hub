@@ -1,19 +1,12 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -26,10 +19,7 @@ import {
   Voicemail,
   Search,
   Plus,
-  User,
   Clock,
-  Play,
-  Pause,
 } from "lucide-react";
 import ConversationDetail from "@/components/inbox/ConversationDetail";
 import CallDetail from "@/components/inbox/CallDetail";
@@ -62,36 +52,29 @@ const channelIcons: Record<string, React.ReactNode> = {
 };
 
 const channelColors: Record<string, string> = {
-  phone: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  sms: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  email: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  voicemail: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  phone: "bg-success/10 text-success",
+  sms: "bg-info/10 text-info",
+  email: "bg-secondary text-secondary-foreground",
+  voicemail: "bg-warning/10 text-warning",
 };
 
 export default function Inbox() {
-  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
-  
+
   const [communications, setCommunications] = useState<UnifiedCommunication[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<TabType>(
-    (searchParams.get("tab") as TabType) || "all"
-  );
+  const [activeTab, setActiveTab] = useState<TabType>((searchParams.get("tab") as TabType) || "all");
   const [selectedItem, setSelectedItem] = useState<{ id: string; type: CommunicationType } | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
-  
-  // Audio for voicemails
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchAllCommunications = async () => {
     try {
       setLoading(true);
       const allComms: UnifiedCommunication[] = [];
 
-      // Fetch conversations (messages)
+      // Conversations (SMS/Email/Phone conversations table)
       if (activeTab === "all" || activeTab === "messages") {
         const { data: conversations, error: convError } = await supabase
           .from("conversations")
@@ -104,7 +87,6 @@ export default function Inbox() {
 
         if (convError) throw convError;
 
-        // Fetch last message for each conversation
         for (const conv of conversations || []) {
           const { data: messages } = await supabase
             .from("conversation_messages")
@@ -128,7 +110,7 @@ export default function Inbox() {
         }
       }
 
-      // Fetch calls
+      // Calls
       if (activeTab === "all" || activeTab === "calls") {
         const { data: calls, error: callError } = await supabase
           .from("call_log")
@@ -152,7 +134,7 @@ export default function Inbox() {
             channel: "phone",
             status: call.status,
             timestamp: call.created_at,
-            preview: `${call.direction === "inbound" ? "Incoming" : "Outgoing"} call - ${call.status}`,
+            preview: `${call.direction === "inbound" ? "Incoming" : "Outgoing"} call • ${call.status}`,
             isUnread: isMissed,
             direction: call.direction,
             duration: call.duration_seconds,
@@ -160,7 +142,7 @@ export default function Inbox() {
         }
       }
 
-      // Fetch voicemails
+      // Voicemails (active only)
       if (activeTab === "all" || activeTab === "voicemails") {
         const { data: voicemails, error: vmError } = await supabase
           .from("voicemails")
@@ -184,14 +166,13 @@ export default function Inbox() {
             channel: "voicemail",
             status: vm.is_listened ? "listened" : "new",
             timestamp: vm.created_at,
-            preview: vm.transcription || "No transcription available",
+            preview: vm.transcription || "Voicemail received",
             isUnread: !vm.is_listened,
             duration: vm.duration_seconds,
           });
         }
       }
 
-      // Sort all by timestamp
       allComms.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setCommunications(allComms);
     } catch (error: any) {
@@ -204,30 +185,27 @@ export default function Inbox() {
 
   useEffect(() => {
     fetchAllCommunications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // Update URL when tab changes
   useEffect(() => {
-    if (activeTab !== "all") {
-      setSearchParams({ tab: activeTab });
-    } else {
-      setSearchParams({});
-    }
+    if (activeTab !== "all") setSearchParams({ tab: activeTab });
+    else setSearchParams({});
   }, [activeTab, setSearchParams]);
 
-  // Real-time subscriptions
   useEffect(() => {
     const channel = supabase
-      .channel('unified-inbox')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, fetchAllCommunications)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_messages' }, fetchAllCommunications)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'call_log' }, fetchAllCommunications)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'voicemails' }, fetchAllCommunications)
+      .channel("unified-inbox")
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, fetchAllCommunications)
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversation_messages" }, fetchAllCommunications)
+      .on("postgres_changes", { event: "*", schema: "public", table: "call_log" }, fetchAllCommunications)
+      .on("postgres_changes", { event: "*", schema: "public", table: "voicemails" }, fetchAllCommunications)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const filteredCommunications = communications.filter((comm) => {
@@ -241,23 +219,16 @@ export default function Inbox() {
   });
 
   const counts = {
-    unread: communications.filter(c => c.isUnread).length,
-    messages: communications.filter(c => c.type === "conversation").length,
-    calls: communications.filter(c => c.type === "call").length,
-    voicemails: communications.filter(c => c.type === "voicemail").length,
-  };
-
-  const handleItemClick = (item: UnifiedCommunication) => {
-    setSelectedItem({ id: item.id, type: item.type });
+    unread: communications.filter((c) => c.isUnread).length,
   };
 
   const formatPhone = (phone: string | null) => {
     if (!phone) return "";
-    const cleaned = phone.replace(/\D/g, '');
+    const cleaned = phone.replace(/\D/g, "");
     if (cleaned.length === 10) {
       return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
     }
-    if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    if (cleaned.length === 11 && cleaned.startsWith("1")) {
       return `(${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
     }
     return phone;
@@ -267,16 +238,12 @@ export default function Inbox() {
     if (!seconds) return "";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const getCallIcon = (item: UnifiedCommunication) => {
-    if (item.status === "missed" || item.status === "no-answer") {
-      return <PhoneMissed className="h-4 w-4" />;
-    }
-    if (item.direction === "inbound") {
-      return <PhoneIncoming className="h-4 w-4" />;
-    }
+    if (item.status === "missed" || item.status === "no-answer") return <PhoneMissed className="h-4 w-4" />;
+    if (item.direction === "inbound") return <PhoneIncoming className="h-4 w-4" />;
     return <PhoneOutgoing className="h-4 w-4" />;
   };
 
@@ -286,149 +253,145 @@ export default function Inbox() {
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
           <div className="text-center">
             <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-            <p className="text-sm">Choose an item from the list to view details</p>
+            <h3 className="text-lg font-medium mb-2">Select an item</h3>
+            <p className="text-sm">Choose a message, call, or voicemail</p>
           </div>
         </div>
       );
     }
 
-    switch (selectedItem.type) {
-      case "conversation":
-        return (
-          <ConversationDetail
-            conversationId={selectedItem.id}
-            onUpdate={fetchAllCommunications}
-            onClose={() => setSelectedItem(null)}
-          />
-        );
-      case "call":
-        return (
-          <CallDetail
-            callId={selectedItem.id}
-            onClose={() => setSelectedItem(null)}
-          />
-        );
-      case "voicemail":
-        return (
-          <VoicemailDetail
-            voicemailId={selectedItem.id}
-            onClose={() => setSelectedItem(null)}
-            onUpdate={fetchAllCommunications}
-          />
-        );
+    if (selectedItem.type === "conversation") {
+      return (
+        <ConversationDetail
+          conversationId={selectedItem.id}
+          onUpdate={fetchAllCommunications}
+          onClose={() => setSelectedItem(null)}
+        />
+      );
     }
+
+    if (selectedItem.type === "call") {
+      return <CallDetail callId={selectedItem.id} onClose={() => setSelectedItem(null)} />;
+    }
+
+    return (
+      <VoicemailDetail
+        voicemailId={selectedItem.id}
+        onClose={() => setSelectedItem(null)}
+        onUpdate={fetchAllCommunications}
+      />
+    );
   };
 
   return (
     <AppLayout>
-      <div className="flex h-[calc(100vh-4rem)]">
-        {/* Sidebar - Communication List */}
-        <div className="w-96 border-r flex flex-col bg-background">
-          {/* Header */}
-          <div className="p-4 border-b space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-semibold">Inbox</h1>
-                <p className="text-sm text-muted-foreground">
-                  {counts.unread} unread
-                </p>
+      <div className="flex flex-col md:flex-row min-h-[70vh] md:min-h-0">
+        {/* List */}
+        {(!isMobile || !selectedItem) && (
+          <div className="w-full md:w-96 md:border-r border-b md:border-b-0 flex flex-col bg-background">
+            <div className="p-4 border-b space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-xl font-semibold">Inbox</h1>
+                  <p className="text-sm text-muted-foreground">{counts.unread} unread</p>
+                </div>
+                <Button size="sm" onClick={() => setShowNewDialog(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  New
+                </Button>
               </div>
-              <Button size="sm" onClick={() => setShowNewDialog(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                New
-              </Button>
+
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="all" className="text-xs">
+                    All
+                  </TabsTrigger>
+                  <TabsTrigger value="messages" className="text-xs">
+                    Msg
+                  </TabsTrigger>
+                  <TabsTrigger value="calls" className="text-xs">
+                    Calls
+                  </TabsTrigger>
+                  <TabsTrigger value="voicemails" className="text-xs">
+                    VM
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
 
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-                <TabsTrigger value="messages" className="text-xs">Messages</TabsTrigger>
-                <TabsTrigger value="calls" className="text-xs">Calls</TabsTrigger>
-                <TabsTrigger value="voicemails" className="text-xs">Voicemails</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
-
-          {/* Communication List */}
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="p-4 text-center text-muted-foreground">Loading...</div>
-            ) : filteredCommunications.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No communications found</p>
-              </div>
-            ) : (
-              filteredCommunications.map((item) => (
-                <div
-                  key={`${item.type}-${item.id}`}
-                  onClick={() => handleItemClick(item)}
-                  className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
-                    selectedItem?.id === item.id && selectedItem?.type === item.type ? "bg-muted" : ""
-                  } ${item.isUnread ? "bg-primary/5" : ""}`}
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Channel Icon */}
-                    <div className={`p-2 rounded-full ${channelColors[item.channel]}`}>
-                      {item.type === "call" ? getCallIcon(item) : channelIcons[item.channel]}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium truncate">
-                          {item.customer_name || formatPhone(item.phone) || "Unknown"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(item.timestamp), "MMM d, h:mm a")}
-                        </span>
+            <div className="flex-1 overflow-y-auto">
+              {loading ? (
+                <div className="p-4 text-center text-muted-foreground">Loading...</div>
+              ) : filteredCommunications.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No communications found</p>
+                </div>
+              ) : (
+                filteredCommunications.map((item) => (
+                  <div
+                    key={`${item.type}-${item.id}`}
+                    onClick={() => setSelectedItem({ id: item.id, type: item.type })}
+                    className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                      selectedItem?.id === item.id && selectedItem?.type === item.type ? "bg-muted" : ""
+                    } ${item.isUnread ? "bg-primary/5" : ""}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-full ${channelColors[item.channel]}`}>
+                        {item.type === "call" ? getCallIcon(item) : channelIcons[item.channel]}
                       </div>
 
-                      <p className="text-sm text-muted-foreground truncate">
-                        {item.preview}
-                      </p>
-
-                      <div className="flex items-center gap-2 mt-2">
-                        {item.isUnread && (
-                          <Badge variant="default" className="text-xs">
-                            {item.type === "voicemail" ? "New" : item.type === "call" ? "Missed" : "Unread"}
-                          </Badge>
-                        )}
-                        {item.duration !== undefined && item.duration !== null && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDuration(item.duration)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium truncate">
+                            {item.customer_name || formatPhone(item.phone) || "Unknown"}
                           </span>
-                        )}
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {item.channel}
-                        </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(item.timestamp), "MMM d, h:mm a")}
+                          </span>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground truncate">{item.preview}</p>
+
+                        <div className="flex items-center gap-2 mt-2">
+                          {item.isUnread && (
+                            <Badge variant="default" className="text-xs">
+                              {item.type === "voicemail" ? "New" : item.type === "call" ? "Missed" : "Unread"}
+                            </Badge>
+                          )}
+                          {item.duration !== undefined && item.duration !== null && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatDuration(item.duration)}
+                            </span>
+                          )}
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {item.channel}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Main Content - Detail View */}
-        <div className="flex-1 flex flex-col">
-          {renderDetail()}
-        </div>
+        {/* Detail */}
+        {(!isMobile || selectedItem) && (
+          <div className="flex-1 min-w-0 flex flex-col">{renderDetail()}</div>
+        )}
       </div>
 
       <NewConversationDialog
