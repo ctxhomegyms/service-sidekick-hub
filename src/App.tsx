@@ -69,8 +69,8 @@ function AppRoutes() {
       <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
       <Route path="/checklist-templates" element={<ProtectedRoute><ChecklistTemplates /></ProtectedRoute>} />
       <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
-      <Route path="/voicemails" element={<ProtectedRoute><Voicemails /></ProtectedRoute>} />
-      <Route path="/call-log" element={<ProtectedRoute><CallLog /></ProtectedRoute>} />
+      <Route path="/voicemails" element={<Navigate to="/inbox?tab=voicemails" replace />} />
+      <Route path="/call-log" element={<Navigate to="/inbox?tab=calls" replace />} />
       <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
