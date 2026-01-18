@@ -22,6 +22,9 @@ import Inbox from "./pages/Inbox";
 import SmsTerms from "./pages/SmsTerms";
 import Privacy from "./pages/Privacy";
 import RequestPickup from "./pages/RequestPickup";
+import Voicemails from "./pages/Voicemails";
+import CallLog from "./pages/CallLog";
+import Leads from "./pages/Leads";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +69,9 @@ function AppRoutes() {
       <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
       <Route path="/checklist-templates" element={<ProtectedRoute><ChecklistTemplates /></ProtectedRoute>} />
       <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+      <Route path="/voicemails" element={<ProtectedRoute><Voicemails /></ProtectedRoute>} />
+      <Route path="/call-log" element={<ProtectedRoute><CallLog /></ProtectedRoute>} />
+      <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
