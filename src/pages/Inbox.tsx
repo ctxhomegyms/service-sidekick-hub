@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -17,100 +18,94 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   Phone,
+  PhoneIncoming,
+  PhoneOutgoing,
+  PhoneMissed,
   MessageSquare,
   Mail,
+  Voicemail,
   Search,
-  Filter,
   Plus,
   User,
   Clock,
+  Play,
+  Pause,
 } from "lucide-react";
 import ConversationDetail from "@/components/inbox/ConversationDetail";
+import CallDetail from "@/components/inbox/CallDetail";
+import VoicemailDetail from "@/components/inbox/VoicemailDetail";
 import NewConversationDialog from "@/components/inbox/NewConversationDialog";
 
-type ConversationChannel = "phone" | "sms" | "email";
-type ConversationStatus = "unread" | "read" | "responded" | "missed" | "closed";
+type CommunicationType = "conversation" | "call" | "voicemail";
+type TabType = "all" | "messages" | "calls" | "voicemails";
 
-interface Conversation {
+interface UnifiedCommunication {
   id: string;
+  type: CommunicationType;
   customer_id: string | null;
-  channel: ConversationChannel;
-  status: ConversationStatus;
-  subject: string | null;
-  assigned_to: string | null;
-  last_message_at: string;
-  created_at: string;
-  customer?: {
-    id: string;
-    name: string;
-    email: string | null;
-    phone: string | null;
-  } | null;
-  assignee?: {
-    id: string;
-    full_name: string | null;
-  } | null;
-  last_message?: {
-    content: string;
-    direction: "inbound" | "outbound";
-  } | null;
+  customer_name: string | null;
+  phone: string | null;
+  channel: "sms" | "email" | "phone" | "voicemail";
+  status: string;
+  timestamp: string;
+  preview: string;
+  isUnread: boolean;
+  direction?: "inbound" | "outbound";
+  duration?: number | null;
 }
 
-const channelIcons: Record<ConversationChannel, React.ReactNode> = {
+const channelIcons: Record<string, React.ReactNode> = {
   phone: <Phone className="h-4 w-4" />,
   sms: <MessageSquare className="h-4 w-4" />,
   email: <Mail className="h-4 w-4" />,
+  voicemail: <Voicemail className="h-4 w-4" />,
 };
 
-const channelColors: Record<ConversationChannel, string> = {
+const channelColors: Record<string, string> = {
   phone: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   sms: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   email: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-};
-
-const statusColors: Record<ConversationStatus, string> = {
-  unread: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  read: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  responded: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  missed: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  closed: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200",
+  voicemail: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
 };
 
 export default function Inbox() {
   const navigate = useNavigate();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  
+  const [communications, setCommunications] = useState<UnifiedCommunication[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [channelFilter, setChannelFilter] = useState<ConversationChannel | "all">("all");
-  const [statusFilter, setStatusFilter] = useState<ConversationStatus | "all">("all");
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>(
+    (searchParams.get("tab") as TabType) || "all"
+  );
+  const [selectedItem, setSelectedItem] = useState<{ id: string; type: CommunicationType } | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  
+  // Audio for voicemails
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const fetchConversations = async () => {
+  const fetchAllCommunications = async () => {
     try {
-      let query = supabase
-        .from("conversations")
-        .select(`
-          *,
-          customer:customers(id, name, email, phone),
-          assignee:profiles!conversations_assigned_to_fkey(id, full_name)
-        `)
-        .order("last_message_at", { ascending: false });
+      setLoading(true);
+      const allComms: UnifiedCommunication[] = [];
 
-      if (channelFilter !== "all") {
-        query = query.eq("channel", channelFilter);
-      }
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter);
-      }
+      // Fetch conversations (messages)
+      if (activeTab === "all" || activeTab === "messages") {
+        const { data: conversations, error: convError } = await supabase
+          .from("conversations")
+          .select(`
+            *,
+            customer:customers(id, name, phone)
+          `)
+          .order("last_message_at", { ascending: false })
+          .limit(50);
 
-      const { data, error } = await query;
+        if (convError) throw convError;
 
-      if (error) throw error;
-
-      // Fetch last message for each conversation
-      const conversationsWithMessages = await Promise.all(
-        (data || []).map(async (conv) => {
+        // Fetch last message for each conversation
+        for (const conv of conversations || []) {
           const { data: messages } = await supabase
             .from("conversation_messages")
             .select("content, direction")
@@ -118,16 +113,89 @@ export default function Inbox() {
             .order("created_at", { ascending: false })
             .limit(1);
 
-          return {
-            ...conv,
-            last_message: messages?.[0] || null,
-          } as Conversation;
-        })
-      );
+          allComms.push({
+            id: conv.id,
+            type: "conversation",
+            customer_id: conv.customer_id,
+            customer_name: conv.customer?.name || null,
+            phone: conv.customer?.phone || null,
+            channel: conv.channel as "sms" | "email" | "phone",
+            status: conv.status,
+            timestamp: conv.last_message_at || conv.created_at,
+            preview: messages?.[0]?.content || conv.subject || "No messages",
+            isUnread: conv.status === "unread",
+          });
+        }
+      }
 
-      setConversations(conversationsWithMessages);
+      // Fetch calls
+      if (activeTab === "all" || activeTab === "calls") {
+        const { data: calls, error: callError } = await supabase
+          .from("call_log")
+          .select(`
+            *,
+            customer:customers(id, name, phone)
+          `)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (callError) throw callError;
+
+        for (const call of calls || []) {
+          const isMissed = call.status === "missed" || call.status === "no-answer";
+          allComms.push({
+            id: call.id,
+            type: "call",
+            customer_id: call.customer_id,
+            customer_name: call.customer?.name || null,
+            phone: call.direction === "inbound" ? call.from_number : call.to_number,
+            channel: "phone",
+            status: call.status,
+            timestamp: call.created_at,
+            preview: `${call.direction === "inbound" ? "Incoming" : "Outgoing"} call - ${call.status}`,
+            isUnread: isMissed,
+            direction: call.direction,
+            duration: call.duration_seconds,
+          });
+        }
+      }
+
+      // Fetch voicemails
+      if (activeTab === "all" || activeTab === "voicemails") {
+        const { data: voicemails, error: vmError } = await supabase
+          .from("voicemails")
+          .select(`
+            *,
+            customer:customers(id, name)
+          `)
+          .eq("is_archived", false)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (vmError) throw vmError;
+
+        for (const vm of voicemails || []) {
+          allComms.push({
+            id: vm.id,
+            type: "voicemail",
+            customer_id: vm.customer_id,
+            customer_name: vm.customer?.name || null,
+            phone: vm.caller_phone,
+            channel: "voicemail",
+            status: vm.is_listened ? "listened" : "new",
+            timestamp: vm.created_at,
+            preview: vm.transcription || "No transcription available",
+            isUnread: !vm.is_listened,
+            duration: vm.duration_seconds,
+          });
+        }
+      }
+
+      // Sort all by timestamp
+      allComms.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setCommunications(allComms);
     } catch (error: any) {
-      toast.error("Failed to fetch conversations");
+      toast.error("Failed to fetch communications");
       console.error(error);
     } finally {
       setLoading(false);
@@ -135,69 +203,127 @@ export default function Inbox() {
   };
 
   useEffect(() => {
-    fetchConversations();
-  }, [channelFilter, statusFilter]);
+    fetchAllCommunications();
+  }, [activeTab]);
 
-  // Real-time subscription for conversations and messages
+  // Update URL when tab changes
   useEffect(() => {
-    const conversationsChannel = supabase
-      .channel('inbox-conversations')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversations',
-        },
-        () => {
-          fetchConversations();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'conversation_messages',
-        },
-        () => {
-          fetchConversations();
-        }
-      )
+    if (activeTab !== "all") {
+      setSearchParams({ tab: activeTab });
+    } else {
+      setSearchParams({});
+    }
+  }, [activeTab, setSearchParams]);
+
+  // Real-time subscriptions
+  useEffect(() => {
+    const channel = supabase
+      .channel('unified-inbox')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, fetchAllCommunications)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_messages' }, fetchAllCommunications)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'call_log' }, fetchAllCommunications)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'voicemails' }, fetchAllCommunications)
       .subscribe();
 
     return () => {
-      supabase.removeChannel(conversationsChannel);
+      supabase.removeChannel(channel);
     };
-  }, [channelFilter, statusFilter]);
+  }, [activeTab]);
 
-  const filteredConversations = conversations.filter((conv) => {
+  const filteredCommunications = communications.filter((comm) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
-      conv.customer?.name?.toLowerCase().includes(query) ||
-      conv.customer?.email?.toLowerCase().includes(query) ||
-      conv.customer?.phone?.toLowerCase().includes(query) ||
-      conv.subject?.toLowerCase().includes(query) ||
-      conv.last_message?.content?.toLowerCase().includes(query)
+      comm.customer_name?.toLowerCase().includes(query) ||
+      comm.phone?.toLowerCase().includes(query) ||
+      comm.preview?.toLowerCase().includes(query)
     );
   });
 
-  const unreadCount = conversations.filter((c) => c.status === "unread").length;
-  const missedCount = conversations.filter((c) => c.status === "missed").length;
-
-  const handleConversationClick = (id: string) => {
-    setSelectedConversation(id);
+  const counts = {
+    unread: communications.filter(c => c.isUnread).length,
+    messages: communications.filter(c => c.type === "conversation").length,
+    calls: communications.filter(c => c.type === "call").length,
+    voicemails: communications.filter(c => c.type === "voicemail").length,
   };
 
-  const handleConversationUpdate = () => {
-    fetchConversations();
+  const handleItemClick = (item: UnifiedCommunication) => {
+    setSelectedItem({ id: item.id, type: item.type });
+  };
+
+  const formatPhone = (phone: string | null) => {
+    if (!phone) return "";
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 10) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+    }
+    if (cleaned.length === 11 && cleaned.startsWith('1')) {
+      return `(${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
+    }
+    return phone;
+  };
+
+  const formatDuration = (seconds: number | null | undefined) => {
+    if (!seconds) return "";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getCallIcon = (item: UnifiedCommunication) => {
+    if (item.status === "missed" || item.status === "no-answer") {
+      return <PhoneMissed className="h-4 w-4" />;
+    }
+    if (item.direction === "inbound") {
+      return <PhoneIncoming className="h-4 w-4" />;
+    }
+    return <PhoneOutgoing className="h-4 w-4" />;
+  };
+
+  const renderDetail = () => {
+    if (!selectedItem) {
+      return (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          <div className="text-center">
+            <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
+            <p className="text-sm">Choose an item from the list to view details</p>
+          </div>
+        </div>
+      );
+    }
+
+    switch (selectedItem.type) {
+      case "conversation":
+        return (
+          <ConversationDetail
+            conversationId={selectedItem.id}
+            onUpdate={fetchAllCommunications}
+            onClose={() => setSelectedItem(null)}
+          />
+        );
+      case "call":
+        return (
+          <CallDetail
+            callId={selectedItem.id}
+            onClose={() => setSelectedItem(null)}
+          />
+        );
+      case "voicemail":
+        return (
+          <VoicemailDetail
+            voicemailId={selectedItem.id}
+            onClose={() => setSelectedItem(null)}
+            onUpdate={fetchAllCommunications}
+          />
+        );
+    }
   };
 
   return (
     <AppLayout>
       <div className="flex h-[calc(100vh-4rem)]">
-        {/* Sidebar - Conversation List */}
+        {/* Sidebar - Communication List */}
         <div className="w-96 border-r flex flex-col bg-background">
           {/* Header */}
           <div className="p-4 border-b space-y-4">
@@ -205,7 +331,7 @@ export default function Inbox() {
               <div>
                 <h1 className="text-xl font-semibold">Inbox</h1>
                 <p className="text-sm text-muted-foreground">
-                  {unreadCount} unread, {missedCount} missed
+                  {counts.unread} unread
                 </p>
               </div>
               <Button size="sm" onClick={() => setShowNewDialog(true)}>
@@ -214,114 +340,82 @@ export default function Inbox() {
               </Button>
             </div>
 
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+                <TabsTrigger value="messages" className="text-xs">Messages</TabsTrigger>
+                <TabsTrigger value="calls" className="text-xs">Calls</TabsTrigger>
+                <TabsTrigger value="voicemails" className="text-xs">Voicemails</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search conversations..."
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
               />
             </div>
-
-            {/* Filters */}
-            <div className="flex gap-2">
-              <Select
-                value={channelFilter}
-                onValueChange={(v) => setChannelFilter(v as ConversationChannel | "all")}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Channel" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Channels</SelectItem>
-                  <SelectItem value="phone">Phone</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => setStatusFilter(v as ConversationStatus | "all")}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="unread">Unread</SelectItem>
-                  <SelectItem value="read">Read</SelectItem>
-                  <SelectItem value="responded">Responded</SelectItem>
-                  <SelectItem value="missed">Missed</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
-          {/* Conversation List */}
+          {/* Communication List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="p-4 text-center text-muted-foreground">Loading...</div>
-            ) : filteredConversations.length === 0 ? (
+            ) : filteredCommunications.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No conversations found</p>
+                <p>No communications found</p>
               </div>
             ) : (
-              filteredConversations.map((conv) => (
+              filteredCommunications.map((item) => (
                 <div
-                  key={conv.id}
-                  onClick={() => handleConversationClick(conv.id)}
+                  key={`${item.type}-${item.id}`}
+                  onClick={() => handleItemClick(item)}
                   className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
-                    selectedConversation === conv.id ? "bg-muted" : ""
-                  } ${conv.status === "unread" ? "bg-primary/5" : ""}`}
+                    selectedItem?.id === item.id && selectedItem?.type === item.type ? "bg-muted" : ""
+                  } ${item.isUnread ? "bg-primary/5" : ""}`}
                 >
                   <div className="flex items-start gap-3">
                     {/* Channel Icon */}
-                    <div
-                      className={`p-2 rounded-full ${channelColors[conv.channel]}`}
-                    >
-                      {channelIcons[conv.channel]}
+                    <div className={`p-2 rounded-full ${channelColors[item.channel]}`}>
+                      {item.type === "call" ? getCallIcon(item) : channelIcons[item.channel]}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-medium truncate">
-                          {conv.customer?.name || "Unknown Contact"}
+                          {item.customer_name || formatPhone(item.phone) || "Unknown"}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(conv.last_message_at), "MMM d, h:mm a")}
+                          {format(new Date(item.timestamp), "MMM d, h:mm a")}
                         </span>
                       </div>
 
-                      {conv.subject && (
-                        <p className="text-sm font-medium truncate mb-1">
-                          {conv.subject}
-                        </p>
-                      )}
-
                       <p className="text-sm text-muted-foreground truncate">
-                        {conv.last_message?.direction === "outbound" && "You: "}
-                        {conv.last_message?.content || "No messages yet"}
+                        {item.preview}
                       </p>
 
                       <div className="flex items-center gap-2 mt-2">
-                        <Badge
-                          variant="secondary"
-                          className={`text-xs ${statusColors[conv.status]}`}
-                        >
-                          {conv.status}
-                        </Badge>
-                        {conv.assignee && (
+                        {item.isUnread && (
+                          <Badge variant="default" className="text-xs">
+                            {item.type === "voicemail" ? "New" : item.type === "call" ? "Missed" : "Unread"}
+                          </Badge>
+                        )}
+                        {item.duration !== undefined && item.duration !== null && (
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {conv.assignee.full_name}
+                            <Clock className="h-3 w-3" />
+                            {formatDuration(item.duration)}
                           </span>
                         )}
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {item.channel}
+                        </Badge>
                       </div>
                     </div>
                   </div>
@@ -331,23 +425,9 @@ export default function Inbox() {
           </div>
         </div>
 
-        {/* Main Content - Conversation Detail */}
+        {/* Main Content - Detail View */}
         <div className="flex-1 flex flex-col">
-          {selectedConversation ? (
-            <ConversationDetail
-              conversationId={selectedConversation}
-              onUpdate={handleConversationUpdate}
-              onClose={() => setSelectedConversation(null)}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-                <p className="text-sm">Choose a conversation from the list to view details</p>
-              </div>
-            </div>
-          )}
+          {renderDetail()}
         </div>
       </div>
 
@@ -356,8 +436,8 @@ export default function Inbox() {
         onOpenChange={setShowNewDialog}
         onCreated={(id) => {
           setShowNewDialog(false);
-          setSelectedConversation(id);
-          fetchConversations();
+          setSelectedItem({ id, type: "conversation" });
+          fetchAllCommunications();
         }}
       />
     </AppLayout>
