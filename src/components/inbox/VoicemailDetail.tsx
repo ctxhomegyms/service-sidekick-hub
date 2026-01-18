@@ -180,7 +180,7 @@ export default function VoicemailDetail({ voicemailId, onClose, onUpdate }: Voic
       <div className="p-4 border-b flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-full bg-muted">
-            <Voicemail className="h-6 w-6 text-orange-500" />
+            <Voicemail className="h-6 w-6 text-warning" />
           </div>
           <div>
             <div className="flex items-center gap-2">

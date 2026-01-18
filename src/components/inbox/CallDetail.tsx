@@ -123,7 +123,7 @@ export default function CallDetail({ callId, onClose }: CallDetailProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Badge className="bg-green-500 text-white">Completed</Badge>;
+        return <Badge className="bg-success text-success-foreground">Completed</Badge>;
       case 'no-answer':
       case 'missed':
         return <Badge variant="destructive">Missed</Badge>;
@@ -142,9 +142,9 @@ export default function CallDetail({ callId, onClose }: CallDetailProps) {
       return <PhoneMissed className="h-6 w-6 text-destructive" />;
     }
     if (call.direction === 'inbound') {
-      return <PhoneIncoming className="h-6 w-6 text-green-500" />;
+      return <PhoneIncoming className="h-6 w-6 text-success" />;
     }
-    return <PhoneOutgoing className="h-6 w-6 text-blue-500" />;
+    return <PhoneOutgoing className="h-6 w-6 text-info" />;
   };
 
   const togglePlayRecording = () => {
