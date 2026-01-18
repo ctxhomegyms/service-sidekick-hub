@@ -9,7 +9,10 @@ import {
   MapPin,
   ClipboardCheck,
   Inbox,
-  Shield
+  Shield,
+  Voicemail,
+  Phone,
+  UserPlus
 } from 'lucide-react';
 import { NavLink as RouterNavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,7 +40,10 @@ const adminItems = [
   { title: 'Live Map', url: '/map', icon: MapPin },
   { title: 'Jobs', url: '/jobs', icon: Briefcase },
   { title: 'Inbox', url: '/inbox', icon: Inbox },
+  { title: 'Voicemails', url: '/voicemails', icon: Voicemail },
+  { title: 'Call Log', url: '/call-log', icon: Phone },
   { title: 'Customers', url: '/customers', icon: Users },
+  { title: 'Leads', url: '/leads', icon: UserPlus },
   { title: 'Technicians', url: '/technicians', icon: Wrench },
 ];
 
