@@ -149,6 +149,11 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent double submission
+    if (isSubmitting) {
+      return;
+    }
+    
     if (!formData.jobName.trim()) {
       toast.error('Please enter a job name');
       return;
@@ -716,11 +721,16 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
 
           {/* Footer */}
           <div className="flex justify-end gap-3 p-6 border-t bg-muted/30">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Job'}
+            <Button type="submit" disabled={isSubmitting} aria-disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : 'Create Job'}
             </Button>
           </div>
         </form>

@@ -73,6 +73,9 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
   }, [channel, selectedCustomer?.phone]);
 
   const handleSubmit = async () => {
+    // Prevent double submission
+    if (loading) return;
+
     if (!customerId) {
       toast.error("Please select a customer");
       return;
@@ -131,12 +134,20 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
               to: phoneValidation.normalized, // Send normalized E.164 number
               message: initialMessage.trim(),
               conversationId: convData.id,
+              customerId: customerId, // Pass customer ID for faster consent lookup
             },
           });
 
           if (smsError) {
             console.error("SMS send error:", smsError);
             toast.warning("Conversation created but SMS delivery failed");
+          } else if (data?.error) {
+            // Handle consent/unknown recipient errors
+            if (data.error.includes("consent") || data.error.includes("Unknown recipient")) {
+              toast.warning(data.message || "Customer has not consented to SMS");
+            } else {
+              toast.warning(data.message || "SMS delivery failed");
+            }
           } else if (data?.status === "failed" || data?.status === "undelivered") {
             const code = data?.error_code ? ` (code ${data.error_code})` : "";
             toast.warning((data?.error_message || "SMS delivery failed") + code);
@@ -287,14 +298,20 @@ export default function NewConversationDialog({ open, onOpenChange, onCreated }:
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
             <Button 
               onClick={handleSubmit} 
               disabled={loading || (channel === "sms" && !phoneValidation?.isValid)}
+              aria-disabled={loading}
             >
-              {loading ? "Creating..." : "Create Conversation"}
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : "Create Conversation"}
             </Button>
           </div>
         </div>

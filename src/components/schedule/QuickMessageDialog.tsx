@@ -47,17 +47,30 @@ export function QuickMessageDialog({
       return;
     }
 
+    // Prevent double submission
+    if (isSending) return;
+
     setIsSending(true);
     try {
       if (channel === "sms" && customerPhone) {
-        const { error } = await supabase.functions.invoke("send-sms", {
+        const { data, error } = await supabase.functions.invoke("send-sms", {
           body: {
             to: customerPhone,
             message: message.trim(),
+            customerId: customerId || undefined,
           },
         });
 
-        if (error) throw error;
+        // Handle consent/unknown recipient errors gracefully
+        if (error || (data && data.error)) {
+          const errorMsg = data?.error || error?.message || "Failed to send SMS";
+          if (errorMsg.includes("consent") || errorMsg.includes("Unknown recipient")) {
+            toast.error(data?.message || "Customer has not consented to SMS messages");
+          } else {
+            throw new Error(errorMsg);
+          }
+          return;
+        }
 
         // Create conversation record
         if (customerId) {
@@ -204,12 +217,14 @@ export function QuickMessageDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isSending}
           >
             Cancel
           </Button>
           <Button
             onClick={handleSend}
             disabled={isSending || !message.trim() || (!canSendSms && !canSendEmail)}
+            aria-disabled={isSending}
           >
             {isSending ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
