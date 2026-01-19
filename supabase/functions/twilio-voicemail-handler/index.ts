@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateTwilioRequest } from "../_shared/twilio-validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,15 @@ serve(async (req) => {
   }
 
   try {
+    // Validate Twilio signature
+    const validation = await validateTwilioRequest(req);
+    if (!validation.valid) {
+      console.error('Invalid Twilio signature - rejecting voicemail webhook');
+      return validation.error!;
+    }
+
+    const { params } = validation;
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -19,15 +29,30 @@ serve(async (req) => {
     const url = new URL(req.url);
     const callLogId = url.searchParams.get('call_log_id');
 
-    // Parse form data from Twilio
-    const formData = await req.formData();
-    const callSid = formData.get('CallSid') as string;
-    const from = formData.get('From') as string;
-    const recordingUrl = formData.get('RecordingUrl') as string;
-    const recordingSid = formData.get('RecordingSid') as string;
-    const recordingDuration = parseInt(formData.get('RecordingDuration') as string) || 0;
+    const callSid = params?.CallSid || '';
+    const from = params?.From || '';
+    const recordingUrl = params?.RecordingUrl || '';
+    const recordingSid = params?.RecordingSid || '';
+    const recordingDuration = parseInt(params?.RecordingDuration || '0') || 0;
 
     console.log('Voicemail handler:', { callSid, from, recordingUrl, recordingSid, recordingDuration });
+
+    // Check for duplicate voicemail (idempotency)
+    if (recordingSid) {
+      const { data: existingVoicemail } = await supabase
+        .from('voicemails')
+        .select('id')
+        .eq('recording_sid', recordingSid)
+        .maybeSingle();
+
+      if (existingVoicemail) {
+        console.log('Duplicate voicemail detected, skipping:', recordingSid);
+        return new Response(
+          '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/xml' } }
+        );
+      }
+    }
 
     // If this is a direct call without recording (initial voicemail prompt)
     if (!recordingUrl) {
