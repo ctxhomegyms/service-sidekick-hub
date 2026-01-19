@@ -11,6 +11,7 @@ interface SMSRequest {
   message: string;
   conversationId?: string;
   customerId?: string; // Optional: pass customer ID directly for faster lookup
+  allowUnknownRecipient?: boolean; // Explicit opt-in to send to unknown numbers
 }
 
 serve(async (req) => {
@@ -42,7 +43,7 @@ serve(async (req) => {
       );
     }
 
-    const { to, message, conversationId, customerId }: SMSRequest = await req.json();
+    const { to, message, conversationId, customerId, allowUnknownRecipient }: SMSRequest = await req.json();
 
     if (!to || !message) {
       return new Response(
@@ -115,8 +116,19 @@ serve(async (req) => {
       }
       console.log(`SMS consent verified for customer: ${customer.name} (${customer.id})`);
     } else {
-      // If no customer found, log warning but allow sending (for system messages, etc.)
-      console.warn(`No customer found for phone ${cleanedPhone} - proceeding without consent check`);
+      // No customer found - block by default unless explicitly allowed
+      if (!allowUnknownRecipient) {
+        console.warn(`SMS blocked: No customer record found for phone ${cleanedPhone}`);
+        return new Response(
+          JSON.stringify({
+            error: "Unknown recipient",
+            message: "Cannot send SMS to unknown phone numbers. Create a customer record first or set allowUnknownRecipient: true for system messages.",
+            phone: cleanedPhone,
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.warn(`No customer found for phone ${cleanedPhone} - proceeding (allowUnknownRecipient=true)`);
     }
 
     console.log(`Sending SMS to ${cleanedPhone} via Twilio`);

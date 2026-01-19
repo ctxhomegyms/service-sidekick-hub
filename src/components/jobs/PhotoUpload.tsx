@@ -21,6 +21,15 @@ export function PhotoUpload({ jobId, photoType, onUploadComplete }: PhotoUploadP
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
+    // Prevent double upload
+    if (isUploading) return;
+
+    // Check online status
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      toast.warning('You are offline. Please try again when connected.');
+      return;
+    }
+
     // Validate file
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');

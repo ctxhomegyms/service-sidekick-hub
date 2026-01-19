@@ -194,15 +194,48 @@ export default function Inbox() {
   }, [activeTab, setSearchParams]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel("unified-inbox")
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, fetchAllCommunications)
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversation_messages" }, fetchAllCommunications)
-      .on("postgres_changes", { event: "*", schema: "public", table: "call_log" }, fetchAllCommunications)
-      .on("postgres_changes", { event: "*", schema: "public", table: "voicemails" }, fetchAllCommunications)
-      .subscribe();
+    let retryCount = 0;
+    const maxRetries = 5;
+    let retryTimeout: NodeJS.Timeout | null = null;
+
+    const subscribe = () => {
+      const channel = supabase
+        .channel("unified-inbox")
+        .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => {
+          retryCount = 0;
+          fetchAllCommunications();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "conversation_messages" }, () => {
+          retryCount = 0;
+          fetchAllCommunications();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "call_log" }, () => {
+          retryCount = 0;
+          fetchAllCommunications();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "voicemails" }, () => {
+          retryCount = 0;
+          fetchAllCommunications();
+        })
+        .subscribe((status) => {
+          if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && retryCount < maxRetries) {
+            retryCount++;
+            const delay = 1000 * Math.pow(2, retryCount - 1);
+            console.log(`Inbox subscription retry ${retryCount}/${maxRetries} in ${delay}ms`);
+            retryTimeout = setTimeout(() => {
+              supabase.removeChannel(channel);
+              subscribe();
+            }, delay);
+          }
+        });
+
+      return channel;
+    };
+
+    const channel = subscribe();
 
     return () => {
+      if (retryTimeout) clearTimeout(retryTimeout);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
