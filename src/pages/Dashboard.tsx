@@ -7,6 +7,8 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { TodaysScheduleWidget } from '@/components/dashboard/TodaysScheduleWidget';
+import { SmsConsentWidget } from '@/components/dashboard/SmsConsentWidget';
+import { NotificationFailuresWidget } from '@/components/dashboard/NotificationFailuresWidget';
 
 interface JobStats {
   total: number;
@@ -200,6 +202,10 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Compliance Widgets */}
+            <SmsConsentWidget />
+            <NotificationFailuresWidget />
           </div>
         </div>
 

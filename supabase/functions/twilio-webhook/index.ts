@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateTwilioRequest } from "../_shared/twilio-validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,15 +14,42 @@ serve(async (req) => {
   }
 
   try {
-    // Parse form data from Twilio webhook
-    const formData = await req.formData();
+    // Validate Twilio signature
+    const validation = await validateTwilioRequest(req);
+    if (!validation.valid) {
+      console.error('Invalid Twilio signature - rejecting webhook');
+      return validation.error!;
+    }
+
+    const { params } = validation;
     
-    const from = formData.get('From') as string;
-    const to = formData.get('To') as string;
-    const body = formData.get('Body') as string;
-    const messageSid = formData.get('MessageSid') as string;
+    const from = params?.From || '';
+    const to = params?.To || '';
+    const body = params?.Body || '';
+    const messageSid = params?.MessageSid || '';
 
     console.log('Received inbound SMS:', { from, to, body: body?.substring(0, 50), messageSid });
+
+    // Check for duplicate message (idempotency)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    if (messageSid) {
+      const { data: existingMessage } = await supabase
+        .from('conversation_messages')
+        .select('id')
+        .eq('metadata->>messageSid', messageSid)
+        .maybeSingle();
+
+      if (existingMessage) {
+        console.log('Duplicate message detected, skipping:', messageSid);
+        return new Response(
+          '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/xml' } }
+        );
+      }
+    }
 
     if (!from || !body) {
       console.error('Missing required fields');
@@ -33,11 +61,6 @@ serve(async (req) => {
         }
       );
     }
-
-    // Initialize Supabase client with service role for admin access
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Normalize phone number (remove +1 prefix for matching)
     const normalizedPhone = from.replace(/^\+1/, '').replace(/\D/g, '');
