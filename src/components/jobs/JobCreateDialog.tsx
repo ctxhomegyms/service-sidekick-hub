@@ -29,6 +29,7 @@ import { LineItemsEditor, LineItem } from './LineItemsEditor';
 import { RecurrenceSettings, RecurrencePattern } from './RecurrenceSettings';
 import { CollapsibleSection } from './CollapsibleSection';
 import { AttachmentUploader, PendingFile } from './AttachmentUploader';
+import { BusinessHoursWarning } from '@/components/schedule/BusinessHoursWarning';
 import { Calendar, Users, Tag, ClipboardList, Settings, FileText, Sliders, Paperclip } from 'lucide-react';
 
 interface JobType {
@@ -423,6 +424,11 @@ export function JobCreateDialog({ open, onOpenChange, onSuccess }: JobCreateDial
                     Schedule later
                   </Label>
                 </div>
+                
+                {/* Business Hours Warning */}
+                {!scheduleLater && formData.startDate && formData.startTime && (
+                  <BusinessHoursWarning date={formData.startDate} time={formData.startTime} />
+                )}
               </div>
 
               {/* Crew Section */}

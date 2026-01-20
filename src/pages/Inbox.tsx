@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
+import { useResilientSubscription } from "@/hooks/useResilientSubscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,8 @@ import {
   Search,
   Plus,
   Clock,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import ConversationDetail from "@/components/inbox/ConversationDetail";
 import CallDetail from "@/components/inbox/CallDetail";
@@ -193,53 +196,46 @@ export default function Inbox() {
     else setSearchParams({});
   }, [activeTab, setSearchParams]);
 
-  useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 5;
-    let retryTimeout: NodeJS.Timeout | null = null;
+  // Handle realtime updates with callback
+  const handleRealtimeUpdate = useCallback(() => {
+    fetchAllCommunications();
+  }, []);
 
-    const subscribe = () => {
-      const channel = supabase
-        .channel("unified-inbox")
-        .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => {
-          retryCount = 0;
-          fetchAllCommunications();
-        })
-        .on("postgres_changes", { event: "*", schema: "public", table: "conversation_messages" }, () => {
-          retryCount = 0;
-          fetchAllCommunications();
-        })
-        .on("postgres_changes", { event: "*", schema: "public", table: "call_log" }, () => {
-          retryCount = 0;
-          fetchAllCommunications();
-        })
-        .on("postgres_changes", { event: "*", schema: "public", table: "voicemails" }, () => {
-          retryCount = 0;
-          fetchAllCommunications();
-        })
-        .subscribe((status) => {
-          if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && retryCount < maxRetries) {
-            retryCount++;
-            const delay = 1000 * Math.pow(2, retryCount - 1);
-            console.log(`Inbox subscription retry ${retryCount}/${maxRetries} in ${delay}ms`);
-            retryTimeout = setTimeout(() => {
-              supabase.removeChannel(channel);
-              subscribe();
-            }, delay);
-          }
-        });
+  // Use resilient subscriptions for all inbox tables
+  const { status: conversationsStatus } = useResilientSubscription({
+    channelName: 'inbox-conversations',
+    table: 'conversations',
+    onData: handleRealtimeUpdate,
+    enabled: true,
+  });
 
-      return channel;
-    };
+  const { status: messagesStatus } = useResilientSubscription({
+    channelName: 'inbox-messages',
+    table: 'conversation_messages',
+    onData: handleRealtimeUpdate,
+    enabled: true,
+  });
 
-    const channel = subscribe();
+  const { status: callsStatus } = useResilientSubscription({
+    channelName: 'inbox-calls',
+    table: 'call_log',
+    onData: handleRealtimeUpdate,
+    enabled: true,
+  });
 
-    return () => {
-      if (retryTimeout) clearTimeout(retryTimeout);
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  const { status: voicemailsStatus } = useResilientSubscription({
+    channelName: 'inbox-voicemails',
+    table: 'voicemails',
+    onData: handleRealtimeUpdate,
+    enabled: true,
+  });
+
+  // Check if any subscription is disconnected
+  const isRealtimeConnected = 
+    conversationsStatus.isConnected && 
+    messagesStatus.isConnected && 
+    callsStatus.isConnected && 
+    voicemailsStatus.isConnected;
 
   const filteredCommunications = communications.filter((comm) => {
     if (!searchQuery) return true;
@@ -325,7 +321,14 @@ export default function Inbox() {
             <div className="p-4 border-b space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-xl font-semibold">Inbox</h1>
+                  <h1 className="text-xl font-semibold flex items-center gap-2">
+                    Inbox
+                    {!isRealtimeConnected && (
+                      <span title="Reconnecting...">
+                        <WifiOff className="h-4 w-4 text-warning" />
+                      </span>
+                    )}
+                  </h1>
                   <p className="text-sm text-muted-foreground">{counts.unread} unread</p>
                 </div>
                 <Button size="sm" onClick={() => setShowNewDialog(true)}>

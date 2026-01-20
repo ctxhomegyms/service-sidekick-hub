@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateTwilioRequest } from "../_shared/twilio-validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,16 +13,22 @@ serve(async (req) => {
   }
 
   try {
+    // Validate Twilio signature
+    const validation = await validateTwilioRequest(req);
+    if (!validation.valid) {
+      console.warn('Invalid Twilio signature - rejecting transcription callback request');
+      return validation.error!;
+    }
+
+    const params = validation.params!;
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Parse form data from Twilio
-    const formData = await req.formData();
     
-    const recordingSid = formData.get('RecordingSid') as string;
-    const transcriptionText = formData.get('TranscriptionText') as string;
-    const transcriptionStatus = formData.get('TranscriptionStatus') as string;
+    const recordingSid = params.RecordingSid || '';
+    const transcriptionText = params.TranscriptionText || '';
+    const transcriptionStatus = params.TranscriptionStatus || '';
 
     console.log('Transcription callback:', { recordingSid, transcriptionStatus, textLength: transcriptionText?.length });
 
