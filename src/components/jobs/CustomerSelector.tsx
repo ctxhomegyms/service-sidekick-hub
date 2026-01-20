@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { findDuplicateCustomers, DuplicateCustomer } from '@/lib/customerValidation';
+import { DuplicateCustomerWarning } from '@/components/customers/DuplicateCustomerWarning';
 
 interface Customer {
   id: string;
@@ -40,6 +42,9 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicates, setDuplicates] = useState<DuplicateCustomer[]>([]);
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
     email: '',
@@ -80,6 +85,29 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
     }
   };
 
+  const checkForDuplicates = async () => {
+    if (!newCustomer.phone && !newCustomer.email) {
+      // No contact info to check
+      return false;
+    }
+    
+    setIsCheckingDuplicates(true);
+    try {
+      const found = await findDuplicateCustomers(newCustomer.phone, newCustomer.email);
+      if (found.length > 0) {
+        setDuplicates(found);
+        setShowDuplicateWarning(true);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+      return false;
+    } finally {
+      setIsCheckingDuplicates(false);
+    }
+  };
+
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -87,6 +115,19 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
       toast.error('Please enter a customer name');
       return;
     }
+
+    // Check for duplicates first (unless we've already seen the warning)
+    if (!showDuplicateWarning) {
+      const hasDuplicates = await checkForDuplicates();
+      if (hasDuplicates) {
+        return; // Wait for user to decide
+      }
+    }
+
+    await createCustomer();
+  };
+
+  const createCustomer = async () => {
 
     setIsLoading(true);
     try {
@@ -118,6 +159,8 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
 
       toast.success('Customer created');
       setIsDialogOpen(false);
+      setShowDuplicateWarning(false);
+      setDuplicates([]);
       setNewCustomer({
         name: '',
         email: '',
@@ -133,6 +176,36 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleUseExisting = (customerId: string) => {
+    onChange(customerId);
+    
+    // Find the customer to get their address
+    const existingCustomer = customers.find(c => c.id === customerId);
+    if (existingCustomer && onAddressSelect) {
+      onAddressSelect({
+        address: existingCustomer.address || undefined,
+        city: existingCustomer.city || undefined,
+        state: existingCustomer.state || undefined,
+        zipCode: existingCustomer.zip_code || undefined,
+      });
+    }
+    
+    setIsDialogOpen(false);
+    setShowDuplicateWarning(false);
+    setDuplicates([]);
+    setNewCustomer({
+      name: '',
+      email: '',
+      phone: '',
+      address: '',
+      city: '',
+      state: '',
+      zip_code: '',
+      sms_consent: false,
+    });
+    toast.success('Using existing customer');
   };
 
   return (
@@ -243,12 +316,37 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
               </div>
             </div>
             
+            {/* Duplicate Customer Warning */}
+            {showDuplicateWarning && duplicates.length > 0 && (
+              <DuplicateCustomerWarning
+                duplicates={duplicates}
+                onUseExisting={handleUseExisting}
+                onCreateNew={() => {
+                  setShowDuplicateWarning(false);
+                  createCustomer();
+                }}
+              />
+            )}
+            
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => {
+                setIsDialogOpen(false);
+                setShowDuplicateWarning(false);
+                setDuplicates([]);
+              }}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'Creating...' : 'Add Customer'}
+              <Button type="submit" disabled={isLoading || isCheckingDuplicates}>
+                {isCheckingDuplicates ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : isLoading ? (
+                  'Creating...'
+                ) : (
+                  'Add Customer'
+                )}
               </Button>
             </DialogFooter>
           </form>

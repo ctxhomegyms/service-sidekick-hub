@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateTwilioRequest, formDataToRecord } from "../_shared/twilio-validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,18 +13,40 @@ serve(async (req) => {
   }
 
   try {
+    // Validate Twilio signature
+    const validation = await validateTwilioRequest(req);
+    if (!validation.valid) {
+      console.warn('Invalid Twilio signature - rejecting voice webhook request');
+      return validation.error!;
+    }
+
+    const formData = validation.formData!;
+    const params = validation.params!;
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse form data from Twilio
-    const formData = await req.formData();
-    const callSid = formData.get('CallSid') as string;
-    const from = formData.get('From') as string;
-    const to = formData.get('To') as string;
-    const callStatus = formData.get('CallStatus') as string;
+    const callSid = params.CallSid || '';
+    const from = params.From || '';
+    const to = params.To || '';
+    const callStatus = params.CallStatus || '';
 
     console.log('Incoming call:', { callSid, from, to, callStatus });
+    
+    // Idempotency check - prevent duplicate call log entries
+    if (callSid) {
+      const { data: existingCall } = await supabase
+        .from('call_log')
+        .select('id')
+        .eq('call_sid', callSid)
+        .maybeSingle();
+      
+      if (existingCall) {
+        console.log('Duplicate call webhook detected, skipping creation for:', callSid);
+        // Continue processing for TwiML response but skip insert
+      }
+    }
 
     if (!callSid || !from) {
       return new Response(
@@ -45,23 +68,39 @@ serve(async (req) => {
     const customer = customers?.[0];
     console.log('Customer match:', customer?.name || 'Unknown caller');
 
-    // Log the call
-    const { data: callLog, error: callLogError } = await supabase
-      .from('call_log')
-      .insert({
-        call_sid: callSid,
-        direction: 'inbound',
-        from_number: from,
-        to_number: to,
-        customer_id: customer?.id || null,
-        status: 'ringing',
-        menu_path: [],
-      })
-      .select('id')
-      .single();
+    // Log the call (with idempotency - only insert if not exists)
+    let callLog: { id: string } | null = null;
+    
+    if (callSid) {
+      // Check if call already exists
+      const { data: existingCall } = await supabase
+        .from('call_log')
+        .select('id')
+        .eq('call_sid', callSid)
+        .maybeSingle();
+      
+      if (existingCall) {
+        callLog = existingCall;
+      } else {
+        const { data: newCallLog, error: callLogError } = await supabase
+          .from('call_log')
+          .insert({
+            call_sid: callSid,
+            direction: 'inbound',
+            from_number: from,
+            to_number: to,
+            customer_id: customer?.id || null,
+            status: 'ringing',
+            menu_path: [],
+          })
+          .select('id')
+          .single();
 
-    if (callLogError) {
-      console.error('Error logging call:', callLogError);
+        if (callLogError) {
+          console.error('Error logging call:', callLogError);
+        }
+        callLog = newCallLog;
+      }
     }
 
     // Check business hours

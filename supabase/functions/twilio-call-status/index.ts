@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateTwilioRequest } from "../_shared/twilio-validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,21 +13,27 @@ serve(async (req) => {
   }
 
   try {
+    // Validate Twilio signature
+    const validation = await validateTwilioRequest(req);
+    if (!validation.valid) {
+      console.warn('Invalid Twilio signature - rejecting call status request');
+      return validation.error!;
+    }
+
+    const params = validation.params!;
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const url = new URL(req.url);
     const callLogId = url.searchParams.get('call_log_id');
-
-    // Parse form data from Twilio
-    const formData = await req.formData();
     
-    const callSid = formData.get('CallSid') as string;
-    const callStatus = formData.get('CallStatus') as string;
-    const callDuration = parseInt(formData.get('CallDuration') as string) || 0;
-    const dialCallStatus = formData.get('DialCallStatus') as string;
-    const from = formData.get('From') as string;
+    const callSid = params.CallSid || '';
+    const callStatus = params.CallStatus || '';
+    const callDuration = parseInt(params.CallDuration || '0') || 0;
+    const dialCallStatus = params.DialCallStatus || '';
+    const from = params.From || '';
 
     console.log('Call status update:', { callSid, callStatus, callDuration, dialCallStatus, callLogId });
 

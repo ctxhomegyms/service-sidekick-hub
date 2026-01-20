@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateTwilioRequest } from "../_shared/twilio-validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,18 +13,24 @@ serve(async (req) => {
   }
 
   try {
+    // Validate Twilio signature
+    const validation = await validateTwilioRequest(req);
+    if (!validation.valid) {
+      console.warn('Invalid Twilio signature - rejecting recording callback request');
+      return validation.error!;
+    }
+
+    const params = validation.params!;
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Parse form data from Twilio
-    const formData = await req.formData();
     
-    const recordingSid = formData.get('RecordingSid') as string;
-    const recordingUrl = formData.get('RecordingUrl') as string;
-    const recordingStatus = formData.get('RecordingStatus') as string;
-    const recordingDuration = parseInt(formData.get('RecordingDuration') as string) || 0;
-    const callSid = formData.get('CallSid') as string;
+    const recordingSid = params.RecordingSid || '';
+    const recordingUrl = params.RecordingUrl || '';
+    const recordingStatus = params.RecordingStatus || '';
+    const recordingDuration = parseInt(params.RecordingDuration || '0') || 0;
+    const callSid = params.CallSid || '';
 
     console.log('Recording callback:', { recordingSid, recordingStatus, recordingDuration, callSid });
 
