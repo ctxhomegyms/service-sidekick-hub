@@ -25,17 +25,32 @@ interface JobSignature {
   signed_at: string;
 }
 
+interface JobType {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
 interface CustomerJob {
   id: string;
+  job_number: string | null;
   title: string;
   description: string | null;
+  instructions: string | null;
+  completion_notes: string | null;
   status: string;
   priority: string;
   scheduled_date: string | null;
   scheduled_time: string | null;
+  estimated_duration_minutes: number | null;
+  actual_duration_minutes: number | null;
+  started_at: string | null;
   completed_at: string | null;
   address: string | null;
   city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  job_type: JobType | null;
   technician: {
     id: string;
     full_name: string | null;
@@ -96,16 +111,25 @@ export function useCustomerHistory(customerId: string | undefined) {
           .from('jobs')
           .select(`
             id,
+            job_number,
             title,
             description,
+            instructions,
+            completion_notes,
             status,
             priority,
             scheduled_date,
             scheduled_time,
+            estimated_duration_minutes,
+            actual_duration_minutes,
+            started_at,
             completed_at,
             address,
             city,
-            assigned_technician_id
+            state,
+            zip_code,
+            assigned_technician_id,
+            job_type_id
           `)
           .eq('customer_id', customerId)
           .order('scheduled_date', { ascending: false });
@@ -124,6 +148,17 @@ export function useCustomerHistory(customerId: string | undefined) {
                 .eq('id', job.assigned_technician_id)
                 .maybeSingle();
               technician = techData;
+            }
+
+            // Fetch job type
+            let jobType = null;
+            if (job.job_type_id) {
+              const { data: jobTypeData } = await supabase
+                .from('job_types')
+                .select('id, name, color')
+                .eq('id', job.job_type_id)
+                .maybeSingle();
+              jobType = jobTypeData;
             }
 
             // Fetch photos
@@ -166,6 +201,7 @@ export function useCustomerHistory(customerId: string | undefined) {
 
             return {
               ...job,
+              job_type: jobType,
               technician,
               photos: photosData || [],
               notes: notesWithAuthors,
