@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 
 export interface SearchResult {
-  result_type: 'job' | 'job_note' | 'customer' | 'pickup' | 'message';
+  result_type: 'job' | 'job_note' | 'customer' | 'pickup' | 'message' | 'conversation_note';
   result_id: string;
   title: string;
   subtitle: string;
