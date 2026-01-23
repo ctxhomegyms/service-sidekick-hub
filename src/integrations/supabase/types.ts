@@ -1890,6 +1890,17 @@ export type Database = {
           phone: string
         }[]
       }
+      global_search: {
+        Args: { result_limit?: number; search_term: string }
+        Returns: {
+          match_context: string
+          relevance: number
+          result_id: string
+          result_type: string
+          subtitle: string
+          title: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
