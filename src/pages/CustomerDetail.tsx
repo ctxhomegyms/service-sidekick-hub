@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   ArrowLeft,
@@ -14,6 +14,11 @@ import {
   AlertCircle,
   Loader2,
   PenLine,
+  ExternalLink,
+  Timer,
+  Briefcase,
+  Hash,
+  ClipboardList,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -213,156 +218,257 @@ export default function CustomerDetail() {
               </CardContent>
             </Card>
           ) : (
-            <Accordion type="multiple" className="space-y-4">
+            <div className="space-y-4">
               {jobs.map((job) => (
-                <AccordionItem
-                  key={job.id}
-                  value={job.id}
-                  className="border rounded-lg px-4 bg-card"
-                >
-                  <AccordionTrigger className="hover:no-underline py-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-left w-full pr-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{job.title}</p>
-                        {job.scheduled_date && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                            <Calendar className="w-3 h-3" />
-                            {format(new Date(job.scheduled_date), 'MMM d, yyyy')}
-                            {job.scheduled_time && (
-                              <>
-                                <Clock className="w-3 h-3 ml-2" />
-                                {job.scheduled_time.slice(0, 5)}
-                              </>
+                <Card key={job.id} className="overflow-hidden">
+                  {/* Job Header - Clickable */}
+                  <Link to={`/jobs/${job.id}`} className="block hover:bg-muted/50 transition-colors">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {job.job_number && (
+                              <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                                {job.job_number}
+                              </span>
                             )}
-                          </p>
-                        )}
+                            {job.job_type && (
+                              <Badge 
+                                variant="outline" 
+                                style={{ 
+                                  borderColor: job.job_type.color || undefined,
+                                  color: job.job_type.color || undefined 
+                                }}
+                              >
+                                {job.job_type.name}
+                              </Badge>
+                            )}
+                          </div>
+                          <CardTitle className="text-lg mt-2 flex items-center gap-2">
+                            {job.title}
+                            <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                          </CardTitle>
+                          {job.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {job.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant={getPriorityVariant(job.priority)} className="capitalize">
+                            {job.priority}
+                          </Badge>
+                          <StatusBadge status={job.status as JobStatus} />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant={getPriorityVariant(job.priority)} className="capitalize">
-                          {job.priority}
-                        </Badge>
-                        <StatusBadge status={job.status as JobStatus} />
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4">
-                    <div className="space-y-4 pt-2">
-                      {/* Job Details */}
-                      {job.description && (
-                        <p className="text-sm text-muted-foreground">{job.description}</p>
+                    </CardHeader>
+                  </Link>
+
+                  <CardContent className="pt-0 space-y-4">
+                    {/* Key Details Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-3 bg-muted/30 rounded-lg">
+                      {job.scheduled_date && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Scheduled</p>
+                            <p className="text-sm font-medium">
+                              {format(new Date(job.scheduled_date), 'MMM d, yyyy')}
+                              {job.scheduled_time && (
+                                <span className="text-muted-foreground ml-1">
+                                  {job.scheduled_time.slice(0, 5)}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {(job.estimated_duration_minutes || job.actual_duration_minutes) && (
+                        <div className="flex items-center gap-2">
+                          <Timer className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Duration</p>
+                            <p className="text-sm font-medium">
+                              {job.actual_duration_minutes 
+                                ? `${job.actual_duration_minutes} min (actual)`
+                                : `${job.estimated_duration_minutes} min (est.)`
+                              }
+                            </p>
+                          </div>
+                        </div>
                       )}
 
-                      {/* Technician */}
                       {job.technician && (
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-8 h-8">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-6 h-6">
                             <AvatarImage src={job.technician.avatar_url || undefined} />
                             <AvatarFallback className="text-xs">
                               {getInitials(job.technician.full_name)}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-sm font-medium">
-                              {job.technician.full_name || 'Unknown Technician'}
+                            <p className="text-xs text-muted-foreground">Technician</p>
+                            <p className="text-sm font-medium truncate">
+                              {job.technician.full_name || 'Unknown'}
                             </p>
-                            <p className="text-xs text-muted-foreground">Assigned Technician</p>
                           </div>
                         </div>
                       )}
 
-                      {/* Location */}
                       {(job.address || job.city) && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="w-4 h-4" />
-                          {[job.address, job.city].filter(Boolean).join(', ')}
-                        </div>
-                      )}
-
-                      <Separator />
-
-                      {/* Photos */}
-                      {job.photos.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium flex items-center gap-2 mb-3">
-                            <Camera className="w-4 h-4" />
-                            Photos ({job.photos.length})
-                          </p>
-                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                            {job.photos.map((photo) => (
-                              <div key={photo.id} className="relative group">
-                                <img
-                                  src={photo.photo_url}
-                                  alt={photo.caption || photo.photo_type}
-                                  className="w-full aspect-square object-cover rounded-lg"
-                                />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                  <span className="text-xs text-white capitalize">
-                                    {photo.photo_type}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Notes */}
-                      {job.notes.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium flex items-center gap-2 mb-3">
-                            <FileText className="w-4 h-4" />
-                            Work Notes ({job.notes.length})
-                          </p>
-                          <div className="space-y-2">
-                            {job.notes.map((note) => (
-                              <div
-                                key={note.id}
-                                className="bg-muted/50 rounded-lg p-3 text-sm"
-                              >
-                                <p>{note.note_text}</p>
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  {note.author?.full_name || 'Unknown'} •{' '}
-                                  {format(new Date(note.created_at), 'MMM d, yyyy h:mm a')}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Signature */}
-                      {job.signature && (
-                        <div>
-                          <p className="text-sm font-medium flex items-center gap-2 mb-3">
-                            <PenLine className="w-4 h-4" />
-                            Customer Signature
-                          </p>
-                          <div className="bg-white rounded-lg p-4 inline-block border">
-                            <img
-                              src={job.signature.signature_url}
-                              alt="Customer signature"
-                              className="max-h-20"
-                            />
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Signed by {job.signature.signer_name} •{' '}
-                              {format(new Date(job.signature.signed_at), 'MMM d, yyyy h:mm a')}
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Location</p>
+                            <p className="text-sm font-medium truncate">
+                              {job.city || job.address}
                             </p>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Completed Info */}
-                      {job.completed_at && (
-                        <div className="flex items-center gap-2 text-sm text-green-600">
-                          <CheckCircle2 className="w-4 h-4" />
-                          Completed on {format(new Date(job.completed_at), 'MMMM d, yyyy')}
                         </div>
                       )}
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
+
+                    {/* Instructions */}
+                    {job.instructions && (
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900">
+                        <p className="text-xs font-medium text-blue-700 dark:text-blue-400 flex items-center gap-1 mb-1">
+                          <ClipboardList className="w-3 h-3" />
+                          Instructions
+                        </p>
+                        <p className="text-sm text-blue-900 dark:text-blue-100">{job.instructions}</p>
+                      </div>
+                    )}
+
+                    {/* Completion Notes */}
+                    {job.completion_notes && (
+                      <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
+                        <p className="text-xs font-medium text-green-700 dark:text-green-400 flex items-center gap-1 mb-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Completion Notes
+                        </p>
+                        <p className="text-sm text-green-900 dark:text-green-100">{job.completion_notes}</p>
+                      </div>
+                    )}
+
+                    {/* Expandable Details */}
+                    {(job.photos.length > 0 || job.notes.length > 0 || job.signature) && (
+                      <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="details" className="border-0">
+                          <AccordionTrigger className="hover:no-underline py-2 text-sm">
+                            <div className="flex items-center gap-4 text-muted-foreground">
+                              {job.photos.length > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <Camera className="w-4 h-4" />
+                                  {job.photos.length} photos
+                                </span>
+                              )}
+                              {job.notes.length > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <FileText className="w-4 h-4" />
+                                  {job.notes.length} notes
+                                </span>
+                              )}
+                              {job.signature && (
+                                <span className="flex items-center gap-1">
+                                  <PenLine className="w-4 h-4" />
+                                  Signed
+                                </span>
+                              )}
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-3 space-y-4">
+                            {/* Photos */}
+                            {job.photos.length > 0 && (
+                              <div>
+                                <p className="text-sm font-medium flex items-center gap-2 mb-3">
+                                  <Camera className="w-4 h-4" />
+                                  Photos ({job.photos.length})
+                                </p>
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                                  {job.photos.map((photo) => (
+                                    <div key={photo.id} className="relative group">
+                                      <img
+                                        src={photo.photo_url}
+                                        alt={photo.caption || photo.photo_type}
+                                        className="w-full aspect-square object-cover rounded-lg"
+                                      />
+                                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                        <span className="text-xs text-white capitalize">
+                                          {photo.photo_type}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Notes */}
+                            {job.notes.length > 0 && (
+                              <div>
+                                <p className="text-sm font-medium flex items-center gap-2 mb-3">
+                                  <FileText className="w-4 h-4" />
+                                  Work Notes ({job.notes.length})
+                                </p>
+                                <div className="space-y-2">
+                                  {job.notes.map((note) => (
+                                    <div
+                                      key={note.id}
+                                      className="bg-muted/50 rounded-lg p-3 text-sm"
+                                    >
+                                      <p>{note.note_text}</p>
+                                      <p className="text-xs text-muted-foreground mt-2">
+                                        {note.author?.full_name || 'Unknown'} •{' '}
+                                        {format(new Date(note.created_at), 'MMM d, yyyy h:mm a')}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Signature */}
+                            {job.signature && (
+                              <div>
+                                <p className="text-sm font-medium flex items-center gap-2 mb-3">
+                                  <PenLine className="w-4 h-4" />
+                                  Customer Signature
+                                </p>
+                                <div className="bg-white rounded-lg p-4 inline-block border">
+                                  <img
+                                    src={job.signature.signature_url}
+                                    alt="Customer signature"
+                                    className="max-h-20"
+                                  />
+                                  <p className="text-xs text-muted-foreground mt-2">
+                                    Signed by {job.signature.signer_name} •{' '}
+                                    {format(new Date(job.signature.signed_at), 'MMM d, yyyy h:mm a')}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    )}
+
+                    {/* Completed Info */}
+                    {job.completed_at && (
+                      <div className="flex items-center gap-2 text-sm text-green-600 pt-2 border-t">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Completed on {format(new Date(job.completed_at), 'MMMM d, yyyy')}
+                        {job.started_at && (
+                          <span className="text-muted-foreground ml-2">
+                            • Started at {format(new Date(job.started_at), 'h:mm a')}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               ))}
-            </Accordion>
+            </div>
           )}
         </div>
       </div>
