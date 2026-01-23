@@ -6,6 +6,7 @@ import {
   Users, 
   Package, 
   MessageSquare,
+  FileText,
   Loader2,
   Search,
   AlertCircle
@@ -54,6 +55,11 @@ const resultTypeConfig: Record<string, {
   message: { 
     label: 'Messages', 
     icon: MessageSquare, 
+    route: (id) => `/inbox?conversation=${id}` 
+  },
+  conversation_note: { 
+    label: 'Conversation Notes', 
+    icon: FileText, 
     route: (id) => `/inbox?conversation=${id}` 
   },
 };
