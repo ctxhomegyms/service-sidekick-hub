@@ -196,15 +196,17 @@ export function CleanTimeGrid({
             {/* Header spacer */}
             <div className="h-12 border-b" />
             {/* Time labels */}
-            {timeLabels.map((time, index) => (
-              <div
-                key={index}
-                className="flex items-start justify-end pr-2 text-xs text-muted-foreground font-medium"
-                style={{ height: slotHeight }}
-              >
-                <span className="-mt-2">{time}</span>
-              </div>
-            ))}
+            <div className="relative" style={{ height: totalHours * slotHeight }}>
+              {timeLabels.slice(0, -1).map((time, index) => (
+                <div
+                  key={index}
+                  className="absolute right-0 pr-2 text-xs text-muted-foreground font-medium -translate-y-1/2"
+                  style={{ top: index * slotHeight }}
+                >
+                  {time}
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Technician columns */}
