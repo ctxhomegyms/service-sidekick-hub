@@ -9,8 +9,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Bell, X } from "lucide-react";
-import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Bell, X, MessageSquare } from "lucide-react";
+import { useState, useMemo } from "react";
 import { format, parseISO } from "date-fns";
 
 interface ScheduleNotificationDialogProps {
@@ -19,9 +26,44 @@ interface ScheduleNotificationDialogProps {
   customerName: string | null;
   scheduledDate: string | null;
   scheduledTime: string | null;
-  onConfirm: () => void;
+  onConfirm: (templateId: string) => void;
   onSkip: () => void;
 }
+
+type TemplateId = 'friendly' | 'professional' | 'brief' | 'detailed';
+
+interface MessageTemplate {
+  id: TemplateId;
+  name: string;
+  getMessage: (name: string, date: string, time: string | null) => string;
+}
+
+const templates: MessageTemplate[] = [
+  {
+    id: 'friendly',
+    name: 'Friendly',
+    getMessage: (name, date, time) => 
+      `Hi ${name}! 🎉 Great news - we've got you on the calendar for ${date}${time ? ` at ${time}` : ''}. We'll send a reminder before your appointment. Can't wait to see you!`,
+  },
+  {
+    id: 'professional',
+    name: 'Professional',
+    getMessage: (name, date, time) => 
+      `Hello ${name}, your appointment has been confirmed for ${date}${time ? ` at ${time}` : ''}. Please contact us if you need to make any changes. Thank you for choosing us.`,
+  },
+  {
+    id: 'brief',
+    name: 'Brief',
+    getMessage: (name, date, time) => 
+      `Hi ${name}, confirmed: ${date}${time ? ` at ${time}` : ''}. See you then!`,
+  },
+  {
+    id: 'detailed',
+    name: 'Detailed',
+    getMessage: (name, date, time) => 
+      `Hi ${name}, your service appointment is scheduled for ${date}${time ? ` at ${time}` : ''}. Your technician will notify you when they're on the way. Reply to this message if you have any questions or need to reschedule.`,
+  },
+];
 
 export function ScheduleNotificationDialog({
   open,
@@ -34,9 +76,10 @@ export function ScheduleNotificationDialog({
 }: ScheduleNotificationDialogProps) {
   const [rememberChoice, setRememberChoice] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('friendly');
 
   const formatTime = (time: string | null) => {
-    if (!time) return "";
+    if (!time) return null;
     const [hours, minutes] = time.split(":");
     const hour = parseInt(hours);
     const period = hour >= 12 ? "PM" : "AM";
@@ -53,12 +96,24 @@ export function ScheduleNotificationDialog({
     }
   };
 
+  const previewMessage = useMemo(() => {
+    const template = templates.find(t => t.id === selectedTemplate);
+    if (!template) return '';
+    
+    const name = customerName || 'Customer';
+    const date = formatDate(scheduledDate);
+    const time = formatTime(scheduledTime);
+    
+    return template.getMessage(name, date, time);
+  }, [selectedTemplate, customerName, scheduledDate, scheduledTime]);
+
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
-      await onConfirm();
+      await onConfirm(selectedTemplate);
       if (rememberChoice) {
         localStorage.setItem("schedule_auto_notify", "true");
+        localStorage.setItem("schedule_preferred_template", selectedTemplate);
       }
     } finally {
       setIsLoading(false);
@@ -79,27 +134,45 @@ export function ScheduleNotificationDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
-            Send Appointment Notification?
+            <MessageSquare className="h-5 w-5 text-primary" />
+            Send Confirmation Message?
           </DialogTitle>
           <DialogDescription>
-            Would you like to notify the customer about their scheduled appointment?
+            Let the customer know they're on the calendar
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-            <p className="text-sm font-medium">Notification Preview:</p>
-            <p className="text-sm text-muted-foreground">
-              "Hi {customerName || "Customer"}, your appointment has been scheduled for{" "}
-              <span className="font-medium text-foreground">{formatDate(scheduledDate)}</span>
-              {scheduledTime && (
-                <>
-                  {" "}at <span className="font-medium text-foreground">{formatTime(scheduledTime)}</span>
-                </>
-              )}
-              . We look forward to seeing you!"
-            </p>
+          {/* Template Selector */}
+          <div className="space-y-2">
+            <Label htmlFor="template" className="text-sm font-medium">
+              Message Template
+            </Label>
+            <Select
+              value={selectedTemplate}
+              onValueChange={(value: TemplateId) => setSelectedTemplate(value)}
+            >
+              <SelectTrigger id="template">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    {template.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Preview */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Preview</Label>
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {previewMessage}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -129,7 +202,7 @@ export function ScheduleNotificationDialog({
             className="w-full sm:w-auto"
           >
             <Bell className="h-4 w-4 mr-2" />
-            {isLoading ? "Sending..." : "Yes, send notification"}
+            {isLoading ? "Sending..." : "Send message"}
           </Button>
         </DialogFooter>
       </DialogContent>

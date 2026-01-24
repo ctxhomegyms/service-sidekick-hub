@@ -29,6 +29,7 @@ interface QuickAssignPopoverProps {
   date: Date;
   time: string;
   onScheduled: () => void;
+  onJobScheduled?: (jobId: string, customerName: string | null, date: string, time: string) => void;
 }
 
 export function QuickAssignPopover({
@@ -39,6 +40,7 @@ export function QuickAssignPopover({
   date,
   time,
   onScheduled,
+  onJobScheduled,
 }: QuickAssignPopoverProps) {
   const [jobs, setJobs] = useState<UnassignedJob[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,6 +126,11 @@ export function QuickAssignPopover({
       toast.success(`Scheduled: ${job.title}`);
       onOpenChange(false);
       onScheduled();
+      
+      // Trigger notification dialog
+      if (onJobScheduled) {
+        onJobScheduled(job.id, job.customer_name, dateStr, timeStr);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to schedule job');
     } finally {

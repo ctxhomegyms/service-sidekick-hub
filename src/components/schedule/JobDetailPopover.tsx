@@ -174,7 +174,7 @@ export function JobDetailPopover({ job, children, open, onOpenChange, onMessageC
             </Button>
           )}
           <Button size="sm" asChild className="ml-auto">
-            <Link to={`/jobs?view=${job.id}`}>
+            <Link to={`/jobs/${job.id}`}>
               View details
               <ExternalLink className="w-3 h-3 ml-1" />
             </Link>
