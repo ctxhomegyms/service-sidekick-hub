@@ -120,10 +120,35 @@ export default function Schedule() {
     }
   };
 
-  const handleNotificationConfirm = () => {
+  const handleNotificationConfirm = (templateId: string) => {
     if (notificationDialog.jobId) {
+      // TODO: Pass templateId to notification function when backend supports custom templates
       notifyJobScheduled(notificationDialog.jobId);
-      toast.success('Notification sent');
+      toast.success('Confirmation message sent');
+    }
+  };
+
+  const handleJobScheduled = (jobId: string, customerName: string | null, date: string, time: string) => {
+    // Check if user has auto-notify preference
+    const autoNotify = localStorage.getItem('schedule_auto_notify');
+    
+    if (autoNotify === 'true') {
+      // Auto-send with preferred template
+      const preferredTemplate = localStorage.getItem('schedule_preferred_template') || 'friendly';
+      notifyJobScheduled(jobId);
+      toast.success('Confirmation message sent');
+    } else if (autoNotify === 'false') {
+      // User chose to skip notifications
+      return;
+    } else {
+      // Show dialog to ask
+      setNotificationDialog({
+        open: true,
+        jobId,
+        customerName,
+        scheduledDate: date,
+        scheduledTime: time,
+      });
     }
   };
 
@@ -233,6 +258,7 @@ export default function Schedule() {
                 jobs={jobs}
                 onJobClick={handleJobClick}
                 onScheduled={fetchData}
+                onJobScheduled={handleJobScheduled}
                 isManager={isManager}
               />
             </div>

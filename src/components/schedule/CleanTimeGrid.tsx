@@ -12,6 +12,7 @@ interface CleanTimeGridProps {
   jobs: ScheduledJob[];
   onJobClick: (job: ScheduledJob) => void;
   onScheduled: () => void;
+  onJobScheduled?: (jobId: string, customerName: string | null, date: string, time: string) => void;
   isManager?: boolean;
   startHour?: number;
   endHour?: number;
@@ -25,6 +26,7 @@ export function CleanTimeGrid({
   jobs,
   onJobClick,
   onScheduled,
+  onJobScheduled,
   isManager = false,
   startHour = 6,
   endHour = 20,
@@ -248,6 +250,7 @@ export function CleanTimeGrid({
             setPopover(null);
             onScheduled();
           }}
+          onJobScheduled={onJobScheduled}
         />
       )}
     </div>
