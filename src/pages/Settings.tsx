@@ -8,8 +8,10 @@ import { CompanySettingsManager } from '@/components/settings/CompanySettingsMan
 import { BusinessHoursManager } from '@/components/settings/BusinessHoursManager';
 import { VoicemailSettingsManager } from '@/components/settings/VoicemailSettingsManager';
 import { AutoReplyManager } from '@/components/settings/AutoReplyManager';
+import { PhoneMenuManager } from '@/components/settings/PhoneMenuManager';
+import { NotificationTemplatesManager } from '@/components/settings/NotificationTemplatesManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Briefcase, Phone, User } from 'lucide-react';
+import { Building2, Briefcase, Phone, User, Bell } from 'lucide-react';
 
 export default function Settings() {
   const { profile, roles } = useAuth();
@@ -23,7 +25,7 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
             <TabsTrigger value="general" className="gap-2">
               <Building2 className="h-4 w-4 hidden sm:inline" />
               General
@@ -35,6 +37,10 @@ export default function Settings() {
             <TabsTrigger value="phone" className="gap-2">
               <Phone className="h-4 w-4 hidden sm:inline" />
               Phone
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-2">
+              <Bell className="h-4 w-4 hidden sm:inline" />
+              Notify
             </TabsTrigger>
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4 hidden sm:inline" />
@@ -53,8 +59,13 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="phone" className="space-y-6 max-w-3xl">
+            <PhoneMenuManager />
             <VoicemailSettingsManager />
             <AutoReplyManager />
+          </TabsContent>
+
+          <TabsContent value="notifications" className="space-y-6 max-w-3xl">
+            <NotificationTemplatesManager />
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6 max-w-3xl">

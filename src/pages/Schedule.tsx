@@ -13,8 +13,10 @@ import { UnassignedJobsPanel } from '@/components/schedule/UnassignedJobsPanel';
 import { JobDetailPopover } from '@/components/schedule/JobDetailPopover';
 import { ScheduleNotificationDialog } from '@/components/schedule/ScheduleNotificationDialog';
 import { QuickMessageDialog } from '@/components/schedule/QuickMessageDialog';
+import { RouteOptimizer } from '@/components/dispatch/RouteOptimizer';
 import { ScheduledJob, Technician } from '@/components/schedule/TimeGridSchedule';
 import { notifyJobScheduled } from '@/lib/notifications';
+import { useTechnicianLocations } from '@/hooks/useTechnicianLocations';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +27,7 @@ type ScheduleView = 'day' | 'week';
 export default function Schedule() {
   const navigate = useNavigate();
   const { isManager } = useAuth();
+  const { locations: technicianLocations } = useTechnicianLocations();
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ScheduleView>('day');
@@ -218,24 +221,56 @@ export default function Schedule() {
             showNewJobButton={isManager}
           />
 
-          {/* Unassigned panel toggle */}
-          {isManager && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-muted-foreground"
-              onClick={() => setShowUnassignedPanel(!showUnassignedPanel)}
-            >
-              {showUnassignedPanel ? (
-                <PanelLeftClose className="w-4 h-4" />
-              ) : (
-                <PanelLeft className="w-4 h-4" />
-              )}
-              <span className="hidden sm:inline">
-                {showUnassignedPanel ? 'Hide' : 'Show'} Unassigned ({unassignedJobs.length})
-              </span>
-            </Button>
-          )}
+          {/* Route Optimizer & Unassigned panel toggle */}
+          <div className="flex items-center gap-2">
+            {isManager && view === 'day' && (
+              <RouteOptimizer
+                jobs={jobs.map(j => ({
+                  id: j.id,
+                  title: j.title,
+                  latitude: j.latitude,
+                  longitude: j.longitude,
+                  address: j.address,
+                  city: j.city,
+                  scheduled_date: j.scheduled_date,
+                  assigned_technician_id: j.assigned_technician_id,
+                }))}
+                technicians={technicians.map(t => ({
+                  id: t.id,
+                  full_name: t.full_name,
+                }))}
+                technicianLocations={technicianLocations.map(loc => ({
+                  technician_id: loc.technician_id,
+                  latitude: loc.latitude,
+                  longitude: loc.longitude,
+                }))}
+                selectedDate={format(currentDate, 'yyyy-MM-dd')}
+                onOptimize={(techId, optimizedIds) => {
+                  toast.success(`Route optimized for technician`);
+                  // TODO: Update job order in the UI or database
+                  fetchData();
+                }}
+              />
+            )}
+            
+            {isManager && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-muted-foreground"
+                onClick={() => setShowUnassignedPanel(!showUnassignedPanel)}
+              >
+                {showUnassignedPanel ? (
+                  <PanelLeftClose className="w-4 h-4" />
+                ) : (
+                  <PanelLeft className="w-4 h-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {showUnassignedPanel ? 'Hide' : 'Show'} Unassigned ({unassignedJobs.length})
+                </span>
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Main Content */}
