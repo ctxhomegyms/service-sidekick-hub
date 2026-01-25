@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin } from 'lucide-react';
+import { ArrowLeft, Star, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,9 @@ import { JobNotes } from '@/components/jobs/JobNotes';
 import { PhotoUpload } from '@/components/jobs/PhotoUpload';
 import { JobActivities } from '@/components/jobs/JobActivities';
 import { PickupDetailsCard } from '@/components/pickup/PickupDetailsCard';
+import { VersionConflictDialog } from '@/components/ui/version-conflict-dialog';
+import { checkJobVersion } from '@/lib/edgeCases';
+import { toast } from 'sonner';
 
 interface JobData {
   id: string;
@@ -37,7 +40,9 @@ interface JobData {
   longitude: number | null;
   created_at: string;
   completed_at: string | null;
+  review_request_sent_at: string | null;
   service_category: string | null;
+  version: number;
   customer: {
     id: string;
     name: string;
@@ -47,6 +52,7 @@ interface JobData {
     city: string | null;
     state: string | null;
     zip_code: string | null;
+    sms_consent: boolean;
   } | null;
   job_type: { id: string; name: string; color: string | null } | null;
   created_by: string | null;
@@ -78,6 +84,12 @@ export default function JobDetail() {
   const [job, setJob] = useState<JobData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
+  const [localVersion, setLocalVersion] = useState<number>(1);
+  const [conflictDialog, setConflictDialog] = useState<{
+    open: boolean;
+    serverVersion: number;
+  }>({ open: false, serverVersion: 1 });
+  const [sendingReviewRequest, setSendingReviewRequest] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -108,6 +120,7 @@ export default function JobDetail() {
       if (error) throw error;
       if (data) {
         setJob(data as unknown as JobData);
+        setLocalVersion(data.version ?? 1);
       }
     } catch (error) {
       console.error('Error fetching job:', error);
@@ -116,8 +129,66 @@ export default function JobDetail() {
     }
   };
 
-  const handleJobUpdate = () => {
+  const handleJobUpdate = async () => {
+    if (!id) return;
+    
+    // Check for version conflicts before refreshing
+    const versionCheck = await checkJobVersion(id, localVersion);
+    if (versionCheck.hasConflict) {
+      setConflictDialog({
+        open: true,
+        serverVersion: versionCheck.serverVersion,
+      });
+      return;
+    }
+    
     fetchJob();
+  };
+
+  const handleConflictRefresh = () => {
+    setConflictDialog({ open: false, serverVersion: 1 });
+    fetchJob();
+  };
+
+  const handleConflictOverwrite = async () => {
+    setConflictDialog({ open: false, serverVersion: 1 });
+    // Force update local version to match server, then proceed
+    if (job) {
+      setLocalVersion(conflictDialog.serverVersion);
+    }
+    fetchJob();
+  };
+
+  const handleConflictCancel = () => {
+    setConflictDialog({ open: false, serverVersion: 1 });
+  };
+
+  const handleSendReviewRequest = async () => {
+    if (!job || !job.customer) {
+      toast.error('No customer associated with this job');
+      return;
+    }
+
+    setSendingReviewRequest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-review-request', {
+        body: { job_id: job.id }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success('Review request sent successfully');
+        fetchJob(); // Refresh to update review_request_sent_at
+      } else {
+        throw new Error(data?.error || 'Failed to send review request');
+      }
+    } catch (error) {
+      console.error('Error sending review request:', error);
+      toast.error('Failed to send review request');
+    } finally {
+      setSendingReviewRequest(false);
+    }
   };
 
   if (isLoading) {
@@ -145,14 +216,44 @@ export default function JobDetail() {
     );
   }
 
+  const canSendReviewRequest = job?.status === 'completed' && 
+    !job?.review_request_sent_at && 
+    job?.customer && 
+    (job.customer.email || (job.customer.phone && job.customer.sms_consent));
+
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Back Button */}
-        <Button variant="ghost" className="gap-2" onClick={() => navigate('/jobs')}>
-          <ArrowLeft className="w-4 h-4" />
-          Back to Jobs
-        </Button>
+        {/* Back Button + Actions */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" className="gap-2" onClick={() => navigate('/jobs')}>
+            <ArrowLeft className="w-4 h-4" />
+            Back to Jobs
+          </Button>
+          
+          {/* Review Request Button - only for completed jobs */}
+          {canSendReviewRequest && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleSendReviewRequest}
+              disabled={sendingReviewRequest}
+            >
+              {sendingReviewRequest ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Star className="w-4 h-4" />
+              )}
+              Request Review
+            </Button>
+          )}
+          
+          {job?.review_request_sent_at && (
+            <span className="text-sm text-muted-foreground">
+              Review requested
+            </span>
+          )}
+        </div>
 
         {/* Job Header */}
         <JobHeader job={job} onUpdate={handleJobUpdate} />
@@ -263,6 +364,16 @@ export default function JobDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Version Conflict Dialog */}
+      <VersionConflictDialog
+        open={conflictDialog.open}
+        onRefresh={handleConflictRefresh}
+        onOverwrite={handleConflictOverwrite}
+        onCancel={handleConflictCancel}
+        currentVersion={localVersion}
+        serverVersion={conflictDialog.serverVersion}
+      />
     </AppLayout>
   );
 }
