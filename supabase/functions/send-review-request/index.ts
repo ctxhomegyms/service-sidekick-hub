@@ -39,41 +39,85 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Parse optional config from request body
     let config: ReviewRequestConfig = { delay_hours: 24 };
+    let specificJobId: string | null = null;
+    
     try {
       const body = await req.json();
       config = { ...config, ...body };
+      specificJobId = body.job_id || null;
     } catch {
       // No body or invalid JSON, use defaults
     }
 
-    console.log("Processing review requests with config:", config);
+    console.log("Processing review requests with config:", config, "specificJobId:", specificJobId);
 
-    const delayHours = config.delay_hours || 24;
-    const now = new Date();
-    const minCompletedAt = new Date(now.getTime() - (delayHours + 1) * 60 * 60 * 1000);
-    const maxCompletedAt = new Date(now.getTime() - delayHours * 60 * 60 * 1000);
+    let eligibleJobs: any[] = [];
 
-    // Find completed jobs without review request sent
-    const { data: eligibleJobs, error: jobsError } = await supabase
-      .from("jobs")
-      .select(`
-        id,
-        title,
-        completed_at,
-        review_request_sent_at,
-        customer:customers(id, name, email, phone, sms_consent)
-      `)
-      .eq("status", "completed")
-      .is("review_request_sent_at", null)
-      .gte("completed_at", minCompletedAt.toISOString())
-      .lte("completed_at", maxCompletedAt.toISOString());
+    if (specificJobId) {
+      // Manual trigger for a specific job
+      const { data: job, error: jobError } = await supabase
+        .from("jobs")
+        .select(`
+          id,
+          title,
+          completed_at,
+          review_request_sent_at,
+          customer:customers(id, name, email, phone, sms_consent)
+        `)
+        .eq("id", specificJobId)
+        .eq("status", "completed")
+        .maybeSingle();
 
-    if (jobsError) {
-      console.error("Error fetching jobs:", jobsError);
-      throw new Error(jobsError.message);
+      if (jobError) {
+        console.error("Error fetching job:", jobError);
+        throw new Error(jobError.message);
+      }
+
+      if (!job) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Job not found or not completed" }),
+          { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      if (job.review_request_sent_at) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Review request already sent for this job" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      eligibleJobs = [job];
+    } else {
+      // Scheduled/batch trigger - find jobs eligible based on delay
+      const delayHours = config.delay_hours || 24;
+      const now = new Date();
+      const minCompletedAt = new Date(now.getTime() - (delayHours + 1) * 60 * 60 * 1000);
+      const maxCompletedAt = new Date(now.getTime() - delayHours * 60 * 60 * 1000);
+
+      const { data: jobs, error: jobsError } = await supabase
+        .from("jobs")
+        .select(`
+          id,
+          title,
+          completed_at,
+          review_request_sent_at,
+          customer:customers(id, name, email, phone, sms_consent)
+        `)
+        .eq("status", "completed")
+        .is("review_request_sent_at", null)
+        .gte("completed_at", minCompletedAt.toISOString())
+        .lte("completed_at", maxCompletedAt.toISOString());
+
+      if (jobsError) {
+        console.error("Error fetching jobs:", jobsError);
+        throw new Error(jobsError.message);
+      }
+
+      eligibleJobs = jobs || [];
     }
 
-    console.log(`Found ${eligibleJobs?.length || 0} jobs eligible for review request`);
+    console.log(`Found ${eligibleJobs.length} jobs eligible for review request`);
 
     const results: any[] = [];
 

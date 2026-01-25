@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -23,6 +30,10 @@ import {
   Clock,
   Wifi,
   WifiOff,
+  FileText,
+  Filter,
+  Archive,
+  Play,
 } from "lucide-react";
 import ConversationDetail from "@/components/inbox/ConversationDetail";
 import CallDetail from "@/components/inbox/CallDetail";
@@ -31,6 +42,8 @@ import NewConversationDialog from "@/components/inbox/NewConversationDialog";
 
 type CommunicationType = "conversation" | "call" | "voicemail";
 type TabType = "all" | "messages" | "calls" | "voicemails";
+type CallDirectionFilter = "all" | "inbound" | "outbound";
+type CallStatusFilter = "all" | "completed" | "missed";
 
 interface UnifiedCommunication {
   id: string;
@@ -45,6 +58,9 @@ interface UnifiedCommunication {
   isUnread: boolean;
   direction?: "inbound" | "outbound";
   duration?: number | null;
+  transcription?: string | null;
+  hasRecording?: boolean;
+  isArchived?: boolean;
 }
 
 const channelIcons: Record<string, React.ReactNode> = {
@@ -71,6 +87,11 @@ export default function Inbox() {
   const [activeTab, setActiveTab] = useState<TabType>((searchParams.get("tab") as TabType) || "all");
   const [selectedItem, setSelectedItem] = useState<{ id: string; type: CommunicationType } | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  
+  // Enhanced filters
+  const [callDirectionFilter, setCallDirectionFilter] = useState<CallDirectionFilter>("all");
+  const [callStatusFilter, setCallStatusFilter] = useState<CallStatusFilter>("all");
+  const [showArchivedVoicemails, setShowArchivedVoicemails] = useState(false);
 
   const fetchAllCommunications = async () => {
     try {
@@ -113,9 +134,9 @@ export default function Inbox() {
         }
       }
 
-      // Calls
+      // Calls with enhanced filtering
       if (activeTab === "all" || activeTab === "calls") {
-        const { data: calls, error: callError } = await supabase
+        let callQuery = supabase
           .from("call_log")
           .select(`
             *,
@@ -123,6 +144,20 @@ export default function Inbox() {
           `)
           .order("created_at", { ascending: false })
           .limit(50);
+
+        // Apply direction filter
+        if (callDirectionFilter !== "all") {
+          callQuery = callQuery.eq("direction", callDirectionFilter);
+        }
+
+        // Apply status filter
+        if (callStatusFilter === "completed") {
+          callQuery = callQuery.eq("status", "completed");
+        } else if (callStatusFilter === "missed") {
+          callQuery = callQuery.in("status", ["missed", "no-answer"]);
+        }
+
+        const { data: calls, error: callError } = await callQuery;
 
         if (callError) throw callError;
 
@@ -141,21 +176,30 @@ export default function Inbox() {
             isUnread: isMissed,
             direction: call.direction,
             duration: call.duration_seconds,
+            hasRecording: !!call.call_sid, // Assume recording if call_sid exists
           });
         }
       }
 
-      // Voicemails (active only)
+      // Voicemails with archive toggle
       if (activeTab === "all" || activeTab === "voicemails") {
-        const { data: voicemails, error: vmError } = await supabase
+        let vmQuery = supabase
           .from("voicemails")
           .select(`
             *,
             customer:customers(id, name)
           `)
-          .eq("is_archived", false)
           .order("created_at", { ascending: false })
           .limit(50);
+
+        // Only filter by archived status if we're on voicemails tab
+        if (activeTab === "voicemails") {
+          vmQuery = vmQuery.eq("is_archived", showArchivedVoicemails);
+        } else {
+          vmQuery = vmQuery.eq("is_archived", false);
+        }
+
+        const { data: voicemails, error: vmError } = await vmQuery;
 
         if (vmError) throw vmError;
 
@@ -169,9 +213,12 @@ export default function Inbox() {
             channel: "voicemail",
             status: vm.is_listened ? "listened" : "new",
             timestamp: vm.created_at,
-            preview: vm.transcription || "Voicemail received",
+            preview: vm.transcription?.substring(0, 100) || "Voicemail received",
             isUnread: !vm.is_listened,
             duration: vm.duration_seconds,
+            transcription: vm.transcription,
+            hasRecording: !!vm.recording_url,
+            isArchived: vm.is_archived,
           });
         }
       }
@@ -189,7 +236,7 @@ export default function Inbox() {
   useEffect(() => {
     fetchAllCommunications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, callDirectionFilter, callStatusFilter, showArchivedVoicemails]);
 
   useEffect(() => {
     if (activeTab !== "all") setSearchParams({ tab: activeTab });
@@ -243,12 +290,15 @@ export default function Inbox() {
     return (
       comm.customer_name?.toLowerCase().includes(query) ||
       comm.phone?.toLowerCase().includes(query) ||
-      comm.preview?.toLowerCase().includes(query)
+      comm.preview?.toLowerCase().includes(query) ||
+      comm.transcription?.toLowerCase().includes(query)
     );
   });
 
   const counts = {
     unread: communications.filter((c) => c.isUnread).length,
+    voicemailsNew: communications.filter((c) => c.type === "voicemail" && c.isUnread).length,
+    callsMissed: communications.filter((c) => c.type === "call" && c.isUnread).length,
   };
 
   const formatPhone = (phone: string | null) => {
@@ -363,6 +413,50 @@ export default function Inbox() {
                   className="pl-9"
                 />
               </div>
+
+              {/* Calls Tab Filters */}
+              {activeTab === "calls" && (
+                <div className="flex gap-2">
+                  <Select value={callDirectionFilter} onValueChange={(v) => setCallDirectionFilter(v as CallDirectionFilter)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Direction" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Directions</SelectItem>
+                      <SelectItem value="inbound">Inbound</SelectItem>
+                      <SelectItem value="outbound">Outbound</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={callStatusFilter} onValueChange={(v) => setCallStatusFilter(v as CallStatusFilter)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="missed">Missed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Voicemails Tab Filters */}
+              {activeTab === "voicemails" && (
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant={showArchivedVoicemails ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowArchivedVoicemails(!showArchivedVoicemails)}
+                    className="gap-2"
+                  >
+                    <Archive className="h-4 w-4" />
+                    {showArchivedVoicemails ? "Archived" : "Active"}
+                  </Button>
+                  {counts.voicemailsNew > 0 && !showArchivedVoicemails && (
+                    <Badge variant="default">{counts.voicemailsNew} new</Badge>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -399,7 +493,7 @@ export default function Inbox() {
 
                         <p className="text-sm text-muted-foreground truncate">{item.preview}</p>
 
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                           {item.isUnread && (
                             <Badge variant="default" className="text-xs">
                               {item.type === "voicemail" ? "New" : item.type === "call" ? "Missed" : "Unread"}
@@ -410,6 +504,24 @@ export default function Inbox() {
                               <Clock className="h-3 w-3" />
                               {formatDuration(item.duration)}
                             </span>
+                          )}
+                          {/* Transcription indicator for voicemails */}
+                          {item.type === "voicemail" && item.transcription && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1" title="Has transcription">
+                              <FileText className="h-3 w-3" />
+                            </span>
+                          )}
+                          {/* Recording indicator */}
+                          {item.hasRecording && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1" title="Has recording">
+                              <Play className="h-3 w-3" />
+                            </span>
+                          )}
+                          {/* Archived indicator */}
+                          {item.isArchived && (
+                            <Badge variant="secondary" className="text-xs">
+                              Archived
+                            </Badge>
                           )}
                           <Badge variant="outline" className="text-xs capitalize">
                             {item.channel}
