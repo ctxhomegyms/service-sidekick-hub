@@ -72,6 +72,8 @@ interface Customer {
   zip_code: string | null;
   notes: string | null;
   created_at: string;
+  sms_consent: boolean | null;
+  sms_consent_date: string | null;
 }
 
 export function useCustomerHistory(customerId: string | undefined) {

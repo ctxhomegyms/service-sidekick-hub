@@ -295,7 +295,7 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
               </div>
             </div>
             
-            {/* SMS Consent Checkbox */}
+            {/* SMS Consent Checkbox — TCPA-compliant disclosure */}
             <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/50 p-3">
               <Checkbox
                 id="customerSmsConsent"
@@ -310,8 +310,9 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
                   SMS Consent
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Customer agrees to receive SMS notifications. 
-                  See <a href="/sms-terms" target="_blank" className="underline hover:text-foreground">SMS Terms</a>.
+                  Customer agrees to receive service-related SMS messages including appointment reminders, technician updates, and job status alerts.
+                  Msg &amp; data rates may apply. Reply <strong>STOP</strong> to opt out at any time.{' '}
+                  <a href="/sms-terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">SMS Terms</a>.
                 </p>
               </div>
             </div>
