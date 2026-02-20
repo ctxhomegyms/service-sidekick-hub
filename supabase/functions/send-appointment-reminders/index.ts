@@ -35,7 +35,7 @@ serve(async (req) => {
     const tomorrow = new Date(now);
     tomorrow.setHours(tomorrow.getHours() + 25);
 
-    const { data: jobs, error: jobsError } = await supabase
+      const { data: jobs, error: jobsError } = await supabase
       .from("jobs")
       .select(`
         id,
@@ -49,7 +49,8 @@ serve(async (req) => {
         customers!customer_id (
           id,
           name,
-          phone
+          phone,
+          sms_consent
         )
       `)
       .in("status", ["scheduled", "pending"])
@@ -72,6 +73,12 @@ serve(async (req) => {
       const customer = job.customers as any;
       if (!customer?.phone) {
         console.log(`Job ${job.id}: No customer phone, skipping`);
+        continue;
+      }
+
+      // TCPA compliance: skip SMS if customer has not given SMS consent
+      if (customer.sms_consent !== true) {
+        console.log(`Job ${job.id}: Customer ${customer.id} has not consented to SMS, skipping`);
         continue;
       }
 

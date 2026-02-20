@@ -19,6 +19,8 @@ import {
   Briefcase,
   Hash,
   ClipboardList,
+  MessageSquareOff,
+  MessageSquare,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -103,7 +105,22 @@ export default function CustomerDetail() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">{customer.name}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-3xl font-bold tracking-tight">{customer.name}</h1>
+              {/* SMS opted-out badge — shown when consent was previously given but later revoked */}
+              {customer.sms_consent === false && customer.sms_consent_date && (
+                <Badge variant="destructive" className="gap-1.5 text-xs">
+                  <MessageSquareOff className="w-3.5 h-3.5" />
+                  SMS Opted Out
+                </Badge>
+              )}
+              {customer.sms_consent === true && (
+                <Badge variant="outline" className="gap-1.5 text-xs text-green-600 border-green-500">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  SMS Subscribed
+                </Badge>
+              )}
+            </div>
             <p className="text-muted-foreground">
               Customer since {format(new Date(customer.created_at), 'MMMM yyyy')}
             </p>

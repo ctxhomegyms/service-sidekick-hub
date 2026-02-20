@@ -169,6 +169,9 @@ serve(async (req) => {
     }
 
     // Send SMS notification if configured
+    // NOTE: allowUnknownRecipient=true is intentional here — this is an internal
+    // operational alert sent to a staff phone number, not a customer marketing message.
+    // Staff numbers are not customer records and do not require SMS opt-in under TCPA.
     if (settings?.notification_sms) {
       console.log('Sending SMS notification to:', settings.notification_sms);
       
@@ -176,7 +179,8 @@ serve(async (req) => {
         await supabase.functions.invoke('send-sms', {
           body: {
             to: settings.notification_sms,
-            message: `New voicemail from ${from} (${recordingDuration}s). Check your voicemail inbox.`
+            message: `New voicemail from ${from} (${recordingDuration}s). Check your voicemail inbox.`,
+            allowUnknownRecipient: true, // Internal staff alert — exempt from customer consent rules
           }
         });
       } catch (smsError) {

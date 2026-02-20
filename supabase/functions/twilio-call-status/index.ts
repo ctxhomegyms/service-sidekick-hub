@@ -90,34 +90,48 @@ serve(async (req) => {
         .single();
 
       if (autoReplySettings && from) {
-        console.log('Auto-reply enabled, sending SMS');
-        
-        // Check business hours if required
-        let shouldSend = true;
-        if (autoReplySettings.business_hours_only) {
-          const { data: isOpen } = await supabase.rpc('is_within_business_hours');
-          shouldSend = isOpen === true;
-        }
+        // TCPA compliance: check sms_consent before sending missed-call auto-reply
+        const normalizedPhone = from.replace(/^\+1/, '').replace(/\D/g, '');
+        const { data: callerCustomers } = await supabase
+          .from('customers')
+          .select('id, name, sms_consent')
+          .or(`phone.ilike.%${normalizedPhone}%,phone.ilike.%${from}%`)
+          .limit(1);
 
-        if (shouldSend) {
-          // Delay sending if configured
-          const delay = autoReplySettings.delay_seconds || 0;
-          
-          if (delay > 0) {
-            console.log(`Delaying auto-reply by ${delay} seconds`);
-            await new Promise(resolve => setTimeout(resolve, delay * 1000));
+        const callerCustomer = callerCustomers?.[0];
+        if (!callerCustomer?.sms_consent) {
+          console.log('Auto-reply blocked: caller has not consented to SMS (TCPA compliance)');
+        } else {
+          console.log('Auto-reply enabled, sending SMS');
+
+          // Check business hours if required
+          let shouldSend = true;
+          if (autoReplySettings.business_hours_only) {
+            const { data: isOpen } = await supabase.rpc('is_within_business_hours');
+            shouldSend = isOpen === true;
           }
 
-          try {
-            await supabase.functions.invoke('send-sms', {
-              body: {
-                to: from,
-                message: autoReplySettings.message_template,
-              }
-            });
-            console.log('Auto-reply SMS sent successfully');
-          } catch (smsError) {
-            console.error('Failed to send auto-reply SMS:', smsError);
+          if (shouldSend) {
+            // Delay sending if configured
+            const delay = autoReplySettings.delay_seconds || 0;
+            
+            if (delay > 0) {
+              console.log(`Delaying auto-reply by ${delay} seconds`);
+              await new Promise(resolve => setTimeout(resolve, delay * 1000));
+            }
+
+            try {
+              await supabase.functions.invoke('send-sms', {
+                body: {
+                  to: from,
+                  message: autoReplySettings.message_template,
+                  customerId: callerCustomer.id,
+                }
+              });
+              console.log('Auto-reply SMS sent successfully');
+            } catch (smsError) {
+              console.error('Failed to send auto-reply SMS:', smsError);
+            }
           }
         }
       }

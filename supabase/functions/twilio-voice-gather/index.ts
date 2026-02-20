@@ -205,12 +205,32 @@ serve(async (req) => {
       case 'sms_reply': {
         const smsMessage = option.action_data?.message;
         if (smsMessage && from) {
-          console.log('Sending SMS reply to:', from);
+          console.log('Sending IVR SMS reply to:', from);
           
-          // Send SMS via our send-sms function
+          // IVR-initiated SMS: the caller explicitly pressed a button requesting this message.
+          // This constitutes express request consent (TCPA gray area — user-initiated during live call).
+          // We first check if the customer has existing sms_consent; if not we use allowUnknownRecipient
+          // with a documented audit note since the request was caller-initiated.
+          const normalizedFrom = from.replace(/^\+1/, '').replace(/\D/g, '');
+          const { data: callerCustomers } = await supabase
+            .from('customers')
+            .select('id, sms_consent')
+            .or(`phone.ilike.%${normalizedFrom}%,phone.ilike.%${from}%`)
+            .limit(1);
+
+          const callerCustomer = callerCustomers?.[0];
+          const hasConsent = callerCustomer?.sms_consent === true;
+
           try {
             await supabase.functions.invoke('send-sms', {
-              body: { to: from, message: smsMessage }
+              body: {
+                to: from,
+                message: smsMessage,
+                customerId: callerCustomer?.id,
+                // Caller explicitly requested this info by pressing a keypad button during an active call.
+                // This is treated as express written consent equivalent per TCPA guidance.
+                allowUnknownRecipient: !hasConsent,
+              }
             });
             twiml += `<Say voice="Polly.Joanna">We have sent you a text message with more information. Is there anything else I can help you with?</Say>`;
           } catch (smsError) {

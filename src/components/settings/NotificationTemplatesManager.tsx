@@ -15,11 +15,23 @@ import { Database } from '@/integrations/supabase/types';
 type AutoReplyRow = Database['public']['Tables']['auto_reply_settings']['Row'];
 type AutoReplyTrigger = Database['public']['Enums']['auto_reply_trigger'];
 
-const TRIGGER_LABELS: Record<AutoReplyTrigger, string> = {
+const TRIGGER_LABELS: Record<string, string> = {
   after_hours: 'After Hours',
   busy: 'Busy Line',
   missed_call: 'Missed Call',
   voicemail: 'Voicemail',
+};
+
+// Compliance keyword response labels — shown separately from auto-reply triggers
+const COMPLIANCE_TRIGGER_LABELS: Record<string, string> = {
+  stop_keyword: 'STOP Reply (Opt-Out Confirmation)',
+  help_keyword: 'HELP Reply (Support Info)',
+  start_keyword: 'START Reply (Re-Subscribe Confirmation)',
+};
+
+const ALL_TRIGGER_LABELS: Record<string, string> = {
+  ...TRIGGER_LABELS,
+  ...COMPLIANCE_TRIGGER_LABELS,
 };
 
 const TEMPLATE_VARIABLES = [
@@ -145,7 +157,9 @@ export function NotificationTemplatesManager() {
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{TRIGGER_LABELS[template.trigger_type]}</span>
+                    <span className="font-medium">
+                      {ALL_TRIGGER_LABELS[template.trigger_type] || template.trigger_type}
+                    </span>
                     <Badge variant="outline" className="gap-1">
                       <MessageSquare className="h-3 w-3" /> SMS
                     </Badge>
@@ -185,7 +199,7 @@ export function NotificationTemplatesManager() {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                Edit {editingTemplate ? TRIGGER_LABELS[editingTemplate.trigger_type] : ''} Template
+                Edit {editingTemplate ? (ALL_TRIGGER_LABELS[editingTemplate.trigger_type] || editingTemplate.trigger_type) : ''} Template
               </DialogTitle>
             </DialogHeader>
             

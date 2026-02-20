@@ -3,12 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FixAGym Field SMS Terms & Conditions</title>
+    <title id="page-title">SMS Terms &amp; Conditions</title>
     <meta
       name="description"
-      content="SMS Terms & Conditions for FixAGym Field: consent, message types, STOP/HELP instructions, frequency, rates, privacy, and contact information."
+      content="SMS Terms & Conditions: consent, message types, STOP/HELP instructions, frequency, rates, privacy, and contact information."
     />
-    <link rel="canonical" href="https://fixagymfield.com/sms-terms" />
     <style>
       :root {
         --bg: #0b0b0d;
@@ -18,97 +17,32 @@
         --border: rgba(255, 255, 255, 0.1);
         --accent: #e11d48;
       }
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
-          Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
         background: var(--bg);
         color: var(--text);
         line-height: 1.55;
       }
-      header {
-        border-bottom: 1px solid var(--border);
-        background: var(--card);
-      }
-      .container {
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 24px 16px;
-      }
-      .brand {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-      }
-      .logo {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: var(--accent);
-      }
-      h1 {
-        margin: 0;
-        font-size: 22px;
-        letter-spacing: 0.2px;
-      }
-      .subtitle {
-        margin: 2px 0 0;
-        color: var(--muted);
-        font-size: 13px;
-      }
-      main {
-        padding: 28px 0 48px;
-      }
-      h2 {
-        margin: 0 0 10px;
-        font-size: 18px;
-      }
-      p {
-        margin: 0 0 12px;
-        color: var(--muted);
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 18px;
-        margin: 18px 0;
-      }
-      .card h3 {
-        margin: 0 0 10px;
-        font-size: 16px;
-        color: var(--text);
-      }
-      ul {
-        margin: 10px 0 0;
-        padding-left: 18px;
-        color: var(--muted);
-      }
-      li {
-        margin: 6px 0;
-      }
-      .callout {
-        border-color: rgba(225, 29, 72, 0.5);
-      }
-      code {
-        background: rgba(255, 255, 255, 0.06);
-        padding: 2px 6px;
-        border-radius: 8px;
-        color: var(--text);
-      }
-      footer {
-        margin-top: 24px;
-        padding-top: 18px;
-        border-top: 1px solid var(--border);
-        color: var(--muted);
-        font-size: 13px;
-      }
-      a {
-        color: var(--text);
-      }
+      header { border-bottom: 1px solid var(--border); background: var(--card); }
+      .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+      .brand { display: flex; gap: 12px; align-items: center; }
+      .logo { width: 40px; height: 40px; border-radius: 10px; background: var(--accent); }
+      h1 { margin: 0; font-size: 22px; letter-spacing: 0.2px; }
+      .subtitle { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+      main { padding: 28px 0 48px; }
+      h2 { margin: 0 0 10px; font-size: 18px; }
+      p { margin: 0 0 12px; color: var(--muted); }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin: 18px 0; }
+      .card h3 { margin: 0 0 10px; font-size: 16px; color: var(--text); }
+      ul { margin: 10px 0 0; padding-left: 18px; color: var(--muted); }
+      li { margin: 6px 0; }
+      .callout { border-color: rgba(225, 29, 72, 0.5); }
+      code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 8px; color: var(--text); }
+      footer { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+      a { color: var(--text); }
+      .loading { opacity: 0.5; font-style: italic; }
     </style>
   </head>
   <body>
@@ -117,7 +51,7 @@
         <div class="brand">
           <div class="logo" aria-hidden="true"></div>
           <div>
-            <h1>FixAGym Field</h1>
+            <h1 id="company-name" class="loading">Loading...</h1>
             <p class="subtitle">SMS Terms &amp; Conditions</p>
           </div>
         </div>
@@ -130,14 +64,14 @@
           <h2>SMS Messaging Program Terms</h2>
           <p>
             By providing your mobile phone number and opting in to receive SMS messages from
-            FixAGym Field, you agree to the following terms and conditions.
+            <span class="company-name-ref">our service</span>, you agree to the following terms and conditions.
           </p>
         </section>
 
         <section class="card">
           <h3>Program Description</h3>
           <p>
-            FixAGym Field provides field service management software that enables service providers
+            <span class="company-name-ref">Our service</span> provides field service management that enables service providers
             to communicate with their customers via SMS text messages. Messages are sent to keep
             customers informed about scheduled services, appointments, and job-related updates.
           </p>
@@ -150,15 +84,15 @@
             <li>Service confirmations and scheduling updates</li>
             <li>Technician en route notifications</li>
             <li>Job completion updates</li>
+            <li>Missed-call follow-up notifications</li>
           </ul>
         </section>
 
         <section class="card">
           <h3>Consent &amp; Opt-In</h3>
           <p>
-            By providing your mobile phone number to your service provider who uses FixAGym Field,
-            you consent to receive automated SMS text messages related to your service appointments
-            and job-related communications.
+            By providing your mobile phone number to your service provider, you consent to receive
+            automated SMS text messages related to your service appointments and job-related communications.
           </p>
           <p><strong>Consent is not required</strong> as a condition of purchasing any goods or services.</p>
         </section>
@@ -167,17 +101,25 @@
           <h3>How to Opt-Out (Stop Messages)</h3>
           <p>
             Reply <code>STOP</code> to any message to opt out. You will receive a one-time confirmation
-            message that you have been unsubscribed.
+            that you have been unsubscribed and no further messages will be sent.
           </p>
           <p>
             To re-subscribe, reply <code>START</code> or contact your service provider.
+          </p>
+          <p>
+            Other opt-out keywords accepted: <code>STOPALL</code>, <code>UNSUBSCRIBE</code>, <code>CANCEL</code>, <code>END</code>, <code>QUIT</code>.
           </p>
         </section>
 
         <section class="card">
           <h3>Need Help?</h3>
           <p>
-            Reply <code>HELP</code> to any message for assistance.
+            Reply <code>HELP</code> to any message for assistance. You will receive our support contact information.
+          </p>
+          <p id="contact-line">
+            Or contact us directly at:
+            <span id="contact-email"></span>
+            <span id="contact-phone"></span>
           </p>
         </section>
 
@@ -194,25 +136,84 @@
           <h3>Privacy</h3>
           <p>
             Your phone number and related personal information will be used only to provide the
-            SMS communications described above and will not be sold or shared for marketing.
+            SMS communications described above and will not be sold or shared for marketing purposes.
           </p>
         </section>
 
         <section class="card">
           <h3>Contact Information</h3>
-          <p>Email: <a href="mailto:support@fixagym.com">support@fixagym.com</a></p>
-          <p>Phone: contact your service provider directly</p>
+          <p id="contact-business-name"></p>
+          <p id="contact-business-email"></p>
+          <p id="contact-business-phone"></p>
         </section>
 
         <footer>
-          <div>Last Updated: January 9, 2026</div>
-          <div>© <span id="year"></span> FixAGym Field. All rights reserved.</div>
+          <div>Last Updated: <span id="last-updated">2026</span></div>
+          <div>&copy; <span id="year"></span> <span class="company-name-ref">Service Provider</span>. All rights reserved.</div>
         </footer>
       </div>
     </main>
 
     <script>
       document.getElementById('year').textContent = String(new Date().getFullYear());
+
+      // Dynamically load business info from the backend
+      (async function loadBusinessInfo() {
+        try {
+          const supabaseUrl = 'https://sdsgphwlmdzrlalpdkdn.supabase.co';
+          const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkc2dwaHdsbWR6cmxhbHBka2RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNjU5MjEsImV4cCI6MjA4Mjk0MTkyMX0.Y50RU1ErSpIFwPnVLDWedzL-4IWolCKZzN-50ertG4g';
+
+          const resp = await fetch(`${supabaseUrl}/rest/v1/company_settings?select=business_name,business_phone,business_email&limit=1`, {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            }
+          });
+
+          if (!resp.ok) throw new Error('Failed to fetch');
+          const data = await resp.json();
+          const settings = data?.[0];
+
+          const companyName = settings?.business_name || 'Our Service';
+          const companyPhone = settings?.business_phone || '';
+          const companyEmail = settings?.business_email || '';
+
+          // Update page title and all company name references
+          document.title = `${companyName} SMS Terms & Conditions`;
+          document.getElementById('page-title').textContent = `${companyName} SMS Terms & Conditions`;
+
+          const nameEl = document.getElementById('company-name');
+          nameEl.textContent = companyName;
+          nameEl.classList.remove('loading');
+
+          document.querySelectorAll('.company-name-ref').forEach(el => {
+            el.textContent = companyName;
+          });
+
+          // Contact details
+          if (companyEmail) {
+            document.getElementById('contact-business-email').innerHTML = `Email: <a href="mailto:${companyEmail}">${companyEmail}</a>`;
+            document.getElementById('contact-email').innerHTML = ` <a href="mailto:${companyEmail}">${companyEmail}</a>`;
+          }
+          if (companyPhone) {
+            document.getElementById('contact-business-phone').textContent = `Phone: ${companyPhone}`;
+            document.getElementById('contact-phone').textContent = companyPhone ? ` | ${companyPhone}` : '';
+          }
+          if (companyName !== 'Our Service') {
+            document.getElementById('contact-business-name').textContent = companyName;
+          }
+
+          // Set last updated date
+          const now = new Date();
+          document.getElementById('last-updated').textContent = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+        } catch (e) {
+          // Fallback: show generic content — page remains valid for compliance
+          document.getElementById('company-name').textContent = 'Our Service';
+          document.getElementById('company-name').classList.remove('loading');
+          console.warn('Could not load business info:', e);
+        }
+      })();
     </script>
   </body>
 </html>
