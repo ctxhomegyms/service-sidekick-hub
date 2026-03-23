@@ -38,7 +38,7 @@ export function useResilientSubscription(options: UseResilientSubscriptionOption
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const retryCountRef = useRef(0);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isActiveRef = useRef(true);
   const onDataRef = useRef(onData);
 
