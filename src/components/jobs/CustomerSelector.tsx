@@ -310,9 +310,11 @@ export function CustomerSelector({ value, onChange, onAddressSelect }: CustomerS
                   SMS Consent
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Customer agrees to receive service-related SMS messages including appointment reminders, technician updates, and job status alerts.
-                  Msg &amp; data rates may apply. Reply <strong>STOP</strong> to opt out at any time.{' '}
-                  <a href="/sms-terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">SMS Terms</a>.
+                  Customer agrees to receive automated service-related SMS messages from CTX Home Gyms via Fix A Gym Field, 
+                  including appointment reminders, technician en-route alerts, job completion updates, and scheduling notifications. 
+                  Msg frequency varies. Msg &amp; data rates may apply. Reply <strong>STOP</strong> to opt out, <strong>HELP</strong> for help.{' '}
+                  <a href="/sms-terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">SMS Terms</a> &amp;{' '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Privacy Policy</a>.
                 </p>
               </div>
             </div>

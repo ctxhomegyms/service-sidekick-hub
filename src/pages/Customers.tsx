@@ -302,14 +302,16 @@ export default function Customers() {
                       }
                       className="mt-0.5"
                     />
-                    <div className="space-y-1">
+                     <div className="space-y-1">
                       <Label htmlFor="sms_consent" className="text-sm font-medium cursor-pointer">
                         SMS Consent
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Customer agrees to receive service-related SMS notifications including appointment reminders, 
-                        technician updates, and job status messages. Message and data rates may apply. 
-                        See our <a href="/sms-terms" target="_blank" className="underline hover:text-foreground">SMS Terms</a>.
+                        Customer agrees to receive automated service-related SMS messages from CTX Home Gyms via Fix A Gym Field, 
+                        including appointment reminders, technician en-route alerts, job completion updates, and scheduling notifications. 
+                        Msg frequency varies. Msg &amp; data rates may apply. Reply <strong>STOP</strong> to opt out, <strong>HELP</strong> for help. 
+                        See our <a href="/sms-terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">SMS Terms</a> &amp;{' '}
+                        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Privacy Policy</a>.
                       </p>
                     </div>
                   </div>
