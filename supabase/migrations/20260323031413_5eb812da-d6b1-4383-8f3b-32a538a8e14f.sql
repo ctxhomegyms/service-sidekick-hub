@@ -1,0 +1,1 @@
+UPDATE company_settings SET business_name = 'CTX Home Gyms', business_email = 'support@ctxhomegyms.com', business_phone = '(512) 591-8553', updated_at = now() WHERE id = 'd51219b6-6c50-49fd-8849-849d5d1ef69f';
